@@ -5,7 +5,7 @@ This module provides a clean interface for making HTTP requests to external APIs
 with proper error handling, type safety, response validation, and authentication support.
 
 Example usage:
-    from api import APIClient, HealthResponse, AuthResponse
+    from flowApi import APIClient, HealthResponse, AuthResponse
     
     # Create client and authenticate
     client = APIClient()

@@ -19,7 +19,7 @@ This module provides a clean, type-safe interface for making HTTP requests to ex
 ## Quick Start
 
 ```python
-from api import APIClient, HealthResponse
+from flowApi import APIClient, HealthResponse
 
 # Basic usage
 client = APIClient()
@@ -48,7 +48,7 @@ client = APIClient(
 The module provides specific exceptions for different error scenarios:
 
 ```python
-from api import (
+from flowApi import (
     APIConnectionError,
     APITimeoutError, 
     APIHTTPError,

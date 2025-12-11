@@ -98,7 +98,7 @@ The project now includes a complete chat completion system compatible with Azure
 
 ### Simple Chat Completion (Convenience Method)
 ```python
-from api import APIClient
+from flowApi import APIClient
 
 with APIClient() as client:
     # Simple question with defaults (max_tokens=4096, temperature=0.7)
@@ -117,7 +117,7 @@ with APIClient() as client:
 
 ### Advanced Chat Completion (Power User Method)
 ```python
-from api import APIClient, ChatMessage, ChatCompletionRequest
+from flowApi import APIClient, ChatMessage, ChatCompletionRequest
 
 with APIClient() as client:
     # Multi-turn conversation with system prompt
@@ -143,7 +143,7 @@ with APIClient() as client:
 
 ### Real-World Chat Scenarios
 ```python
-from api import APIClient, ChatMessage, ChatCompletionRequest
+from flowApi import APIClient, ChatMessage, ChatCompletionRequest
 
 with APIClient() as client:
     # Customer Support Chatbot (consistent responses)
@@ -190,7 +190,7 @@ The project includes a complete authentication system for the CI&T Flow API:
 
 ### Authentication Workflow
 ```python
-from api import APIClient, APIAuthenticationError
+from flowApi import APIClient, APIAuthenticationError
 
 try:
     with APIClient() as client:
@@ -208,7 +208,7 @@ except APIAuthenticationError as e:
 
 ### Token Management
 ```python
-from api import APIClient
+from flowApi import APIClient
 
 with APIClient() as client:
     auth = client.authenticate()
@@ -234,7 +234,7 @@ The project includes a robust API client for communicating with external service
 
 ### Health Check (Unauthenticated)
 ```python
-from api import APIClient
+from flowApi import APIClient
 
 with APIClient() as client:
     health = client.health_check()
@@ -244,7 +244,7 @@ with APIClient() as client:
 
 ### Health Check (Authenticated)
 ```python
-from api import APIClient
+from flowApi import APIClient
 
 with APIClient() as client:
     # Automatically authenticates if needed
@@ -254,7 +254,7 @@ with APIClient() as client:
 
 ### Error Handling
 ```python
-from api import (
+from flowApi import (
     APIClient, APIConnectionError, APITimeoutError, 
     APIHTTPError, APIAuthenticationError, APIConfigurationError
 )
@@ -410,7 +410,7 @@ rag_folder = settings['RAG_FOLDER']
 
 The project follows clean architecture principles with modular design:
 
-### **API Module (`src/api/`)**
+### **API Module (`src/flowApi/`)**
 - **APIClient**: HTTP client with authentication, connection pooling, and error handling
 - **Chat Completion Methods**: 
   - `chat_completion()`: Convenience method for simple use cases
@@ -457,7 +457,7 @@ The architecture makes it easy to add new authenticated endpoints:
 
 1. **Create Response Model** (if needed):
 ```python
-# In src/api/models.py
+# In src/flowApi/models.py
 @dataclass
 class NewEndpointResponse:
     field1: str
@@ -471,7 +471,7 @@ class NewEndpointResponse:
 
 2. **Add Client Method**:
 ```python
-# In src/api/client.py
+# In src/flowApi/client.py
 def new_endpoint(self, param: str) -> NewEndpointResponse:
     """Call the new endpoint with automatic authentication."""
     endpoint = f'/api/v1/new-endpoint/{param}'
@@ -562,7 +562,7 @@ APIError (base)
 For questions or issues:
 
 1. **Check Documentation**: Review module-specific README files
-   - `src/api/README.md` - API client documentation
+   - `src/flowApi/README.md` - API client documentation
    - Main README.md - Overall project documentation
 
 2. **Run Examples**: Test functionality with provided examples

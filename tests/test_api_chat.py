@@ -10,7 +10,7 @@ import json
 from unittest.mock import Mock, patch, MagicMock
 from requests import Response
 
-from src.api import (
+from src.flowApi import (
     APIClient, ChatMessage, ChatCompletionRequest, ChatCompletionResponse,
     ChatCompletionChoice, ChatCompletionUsage, APIResponseError,
     APIAuthenticationError, APIConnectionError
@@ -438,7 +438,7 @@ class TestAPIClientChatMethods:
             call_args = mock_send.call_args[0][0]
             assert call_args.messages[0].content == "Hello, world!"
     
-    @patch('src.api.client.requests.Session.request')
+    @patch('src.flowApi.client.requests.Session.request')
     def test_send_chat_request_success(self, mock_request, mock_client):
         """Test successful send_chat_request method."""
         # Mock successful HTTP response
@@ -488,7 +488,7 @@ class TestAPIClientChatMethods:
         with pytest.raises(ValueError, match="request must be a ChatCompletionRequest instance"):
             mock_client.send_chat_request("not a request")
     
-    @patch('src.api.client.requests.Session.request')
+    @patch('src.flowApi.client.requests.Session.request')
     def test_send_chat_request_http_error(self, mock_request, mock_client):
         """Test send_chat_request with HTTP error."""
         mock_response = Mock(spec=Response)
@@ -502,7 +502,7 @@ class TestAPIClientChatMethods:
         with pytest.raises(Exception):  # Should raise some API exception
             mock_client.send_chat_request(request)
     
-    @patch('src.api.client.requests.Session.request')
+    @patch('src.flowApi.client.requests.Session.request')
     def test_send_chat_request_invalid_json(self, mock_request, mock_client):
         """Test send_chat_request with invalid JSON response."""
         mock_response = Mock(spec=Response)
@@ -517,7 +517,7 @@ class TestAPIClientChatMethods:
         with pytest.raises(APIResponseError, match="Invalid JSON response"):
             mock_client.send_chat_request(request)
     
-    @patch('src.api.client.requests.Session.request')
+    @patch('src.flowApi.client.requests.Session.request')
     def test_send_chat_request_authentication_required(self, mock_request):
         """Test that send_chat_request requires authentication."""
         # Create client without authentication

@@ -11,7 +11,7 @@ import requests
 import json
 
 # Import the API classes
-from src.api import (
+from src.flowApi import (
     APIClient,
     HealthResponse,
     APIError,
@@ -253,7 +253,7 @@ class TestAPIClient:
     
     @pytest.mark.unit
     @pytest.mark.api
-    @patch('src.api.client.requests.Session.request')
+    @patch('src.flowApi.client.requests.Session.request')
     def test_health_check_success(self, mock_request, api_client, mock_response_success):
         """Test successful health check."""
         mock_request.return_value = mock_response_success
@@ -273,7 +273,7 @@ class TestAPIClient:
     
     @pytest.mark.unit
     @pytest.mark.api
-    @patch('src.api.client.requests.Session.request')
+    @patch('src.flowApi.client.requests.Session.request')
     def test_health_check_http_error(self, mock_request, api_client, mock_response_http_error):
         """Test health check with HTTP error response."""
         mock_request.return_value = mock_response_http_error
@@ -286,7 +286,7 @@ class TestAPIClient:
     
     @pytest.mark.unit
     @pytest.mark.api
-    @patch('src.api.client.requests.Session.request')
+    @patch('src.flowApi.client.requests.Session.request')
     def test_health_check_auth_error_401(self, mock_request, api_client):
         """Test health check with 401 authentication error."""
         mock_response = Mock()
@@ -302,7 +302,7 @@ class TestAPIClient:
     
     @pytest.mark.unit
     @pytest.mark.api
-    @patch('src.api.client.requests.Session.request')
+    @patch('src.flowApi.client.requests.Session.request')
     def test_health_check_auth_error_403(self, mock_request, api_client):
         """Test health check with 403 authorization error."""
         mock_response = Mock()
@@ -318,7 +318,7 @@ class TestAPIClient:
     
     @pytest.mark.unit
     @pytest.mark.api
-    @patch('src.api.client.requests.Session.request')
+    @patch('src.flowApi.client.requests.Session.request')
     def test_health_check_connection_error(self, mock_request, api_client):
         """Test health check with connection error."""
         mock_request.side_effect = requests.exceptions.ConnectionError("Connection failed")
@@ -330,7 +330,7 @@ class TestAPIClient:
     
     @pytest.mark.unit
     @pytest.mark.api
-    @patch('src.api.client.requests.Session.request')
+    @patch('src.flowApi.client.requests.Session.request')
     def test_health_check_timeout_error(self, mock_request, api_client):
         """Test health check with timeout error."""
         mock_request.side_effect = requests.exceptions.Timeout("Request timed out")
@@ -343,7 +343,7 @@ class TestAPIClient:
     
     @pytest.mark.unit
     @pytest.mark.api
-    @patch('src.api.client.requests.Session.request')
+    @patch('src.flowApi.client.requests.Session.request')
     def test_health_check_invalid_json(self, mock_request, api_client, mock_response_invalid_json):
         """Test health check with invalid JSON response."""
         mock_request.return_value = mock_response_invalid_json
@@ -355,7 +355,7 @@ class TestAPIClient:
     
     @pytest.mark.unit
     @pytest.mark.api
-    @patch('src.api.client.requests.Session.request')
+    @patch('src.flowApi.client.requests.Session.request')
     def test_health_check_custom_timeout(self, mock_request, mock_response_success):
         """Test health check with custom timeout."""
         client = APIClient(timeout=60)
@@ -404,7 +404,7 @@ class TestAPIClient:
     
     @pytest.mark.unit
     @pytest.mark.api
-    @patch('src.api.client.requests.Session.request')
+    @patch('src.flowApi.client.requests.Session.request')
     def test_make_request_url_construction(self, mock_request, api_client, mock_response_success):
         """Test URL construction in _make_request method."""
         mock_request.return_value = mock_response_success
@@ -544,7 +544,7 @@ class TestAPIIntegration:
     
     @pytest.mark.integration
     @pytest.mark.api
-    @patch('src.api.client.requests.Session.request')
+    @patch('src.flowApi.client.requests.Session.request')
     def test_complete_health_check_workflow(self, mock_request):
         """Integration test for complete health check workflow."""
         # Setup mock response
@@ -589,7 +589,7 @@ class TestAPIParametrized:
     ])
     @pytest.mark.unit
     @pytest.mark.api
-    @patch('src.api.client.requests.Session.request')
+    @patch('src.flowApi.client.requests.Session.request')
     def test_http_error_status_codes(self, mock_request, status_code, expected_exception):
         """Test different HTTP error status codes."""
         mock_response = Mock()
@@ -611,7 +611,7 @@ class TestAPIParametrized:
     ])
     @pytest.mark.unit
     @pytest.mark.api
-    @patch('src.api.client.requests.Session.request')
+    @patch('src.flowApi.client.requests.Session.request')
     def test_requests_exception_mapping(self, mock_request, exception_class, expected_api_exception):
         """Test mapping of requests exceptions to API exceptions."""
         mock_request.side_effect = exception_class("Test error")

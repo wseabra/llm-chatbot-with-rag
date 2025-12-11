@@ -12,7 +12,7 @@ import json
 import time
 
 # Import the API classes
-from src.api import (
+from src.flowApi import (
     APIClient,
     AuthRequest,
     AuthResponse,
@@ -366,7 +366,7 @@ class TestAPIClientAuthentication:
     
     @pytest.mark.unit
     @pytest.mark.api
-    @patch('src.api.client.requests.Session.request')
+    @patch('src.flowApi.client.requests.Session.request')
     def test_authenticate_success(self, mock_request, mock_config, mock_auth_response_success):
         """Test successful authentication."""
         mock_request.return_value = mock_auth_response_success
@@ -401,7 +401,7 @@ class TestAPIClientAuthentication:
     
     @pytest.mark.unit
     @pytest.mark.api
-    @patch('src.api.client.requests.Session.request')
+    @patch('src.flowApi.client.requests.Session.request')
     def test_authenticate_http_error(self, mock_request, mock_config, mock_auth_response_error):
         """Test authentication with HTTP error."""
         mock_request.return_value = mock_auth_response_error
@@ -436,7 +436,7 @@ class TestAPIClientAuthentication:
     
     @pytest.mark.unit
     @pytest.mark.api
-    @patch('src.api.client.APIClient._load_config')
+    @patch('src.flowApi.client.APIClient._load_config')
     def test_authenticate_no_config(self, mock_load_config):
         """Test authentication without config (should auto-load)."""
         # Mock the _load_config method to raise an error
@@ -450,7 +450,7 @@ class TestAPIClientAuthentication:
     
     @pytest.mark.unit
     @pytest.mark.api
-    @patch('src.api.client.requests.Session.request')
+    @patch('src.flowApi.client.requests.Session.request')
     def test_authenticate_invalid_json_response(self, mock_request, mock_config):
         """Test authentication with invalid JSON response."""
         mock_response = Mock()
@@ -468,7 +468,7 @@ class TestAPIClientAuthentication:
     
     @pytest.mark.unit
     @pytest.mark.api
-    @patch('src.api.client.requests.Session.request')
+    @patch('src.flowApi.client.requests.Session.request')
     def test_authenticate_connection_error(self, mock_request, mock_config):
         """Test authentication with connection error."""
         mock_request.side_effect = requests.exceptions.ConnectionError("Connection failed")
@@ -505,7 +505,7 @@ class TestAPIClientAuthentication:
     @pytest.mark.api
     def test_get_auth_info(self, mock_config, mock_auth_response_success):
         """Test get_auth_info method."""
-        with patch('src.api.client.requests.Session.request') as mock_request:
+        with patch('src.flowApi.client.requests.Session.request') as mock_request:
             mock_request.return_value = mock_auth_response_success
             
             client = APIClient(config=mock_config)
@@ -522,7 +522,7 @@ class TestAPIClientAuthentication:
     
     @pytest.mark.unit
     @pytest.mark.api
-    @patch('src.api.client.requests.Session.request')
+    @patch('src.flowApi.client.requests.Session.request')
     def test_make_authenticated_request_auto_auth(self, mock_request, mock_config):
         """Test _make_authenticated_request with automatic authentication."""
         # Mock successful auth response
@@ -567,7 +567,7 @@ class TestAPIClientAuthentication:
     
     @pytest.mark.unit
     @pytest.mark.api
-    @patch('src.api.client.requests.Session.request')
+    @patch('src.flowApi.client.requests.Session.request')
     def test_health_check_authenticated(self, mock_request, mock_config):
         """Test health_check with authentication."""
         # Mock auth response
@@ -600,7 +600,7 @@ class TestAPIClientAuthenticationIntegration:
     
     @pytest.mark.integration
     @pytest.mark.api
-    @patch('src.api.client.requests.Session.request')
+    @patch('src.flowApi.client.requests.Session.request')
     def test_complete_authentication_workflow(self, mock_request):
         """Integration test for complete authentication workflow."""
         # Mock config
@@ -658,7 +658,7 @@ class TestAPIClientAuthenticationParametrized:
     ])
     @pytest.mark.unit
     @pytest.mark.api
-    @patch('src.api.client.requests.Session.request')
+    @patch('src.flowApi.client.requests.Session.request')
     def test_authenticate_http_error_status_codes(self, mock_request, status_code, expected_exception):
         """Test authentication with different HTTP error status codes."""
         mock_config = Mock()
@@ -712,7 +712,7 @@ class TestAPIClientAuthenticationParametrized:
     ])
     @pytest.mark.unit
     @pytest.mark.api
-    @patch('src.api.client.requests.Session.request')
+    @patch('src.flowApi.client.requests.Session.request')
     def test_authenticate_requests_exception_mapping(self, mock_request, exception_class, expected_api_exception):
         """Test mapping of requests exceptions to API exceptions during authentication."""
         mock_config = Mock()
