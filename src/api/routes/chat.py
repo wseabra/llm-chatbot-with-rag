@@ -15,6 +15,7 @@ from ...flowApi.exceptions import (
     APIConnectionError, APITimeoutError, APIHTTPError, 
     APIResponseError, APIAuthenticationError, APIConfigurationError
 )
+from ..clientManager import ClientManager
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
@@ -42,14 +43,14 @@ class AdvancedChatRequest(BaseModel):
     allowed_models: List[str] = Field(default=["gpt-4o-mini"], description="List of allowed models")
 
 
-def get_api_client() -> APIClient:
+async def get_api_client() -> APIClient:
     """
-    Dependency to create and return an APIClient instance.
+    Dependency to get the shared APIClient instance.
     
     Returns:
-        APIClient: Configured API client instance
+        APIClient: Shared API client instance from ClientManager
     """
-    return APIClient()
+    return await ClientManager.get_client()
 
 
 @router.post("/completion")
@@ -144,9 +145,6 @@ async def chat_completion(
                 "error": str(e)
             }
         )
-    finally:
-        # Clean up client resources
-        client.close()
 
 
 @router.post("/advanced")
@@ -245,6 +243,3 @@ async def advanced_chat_completion(
                 "error": str(e)
             }
         )
-    finally:
-        # Clean up client resources
-        client.close()

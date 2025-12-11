@@ -13,18 +13,19 @@ from ...flowApi.exceptions import (
     APIConnectionError, APITimeoutError, APIHTTPError, 
     APIResponseError, APIAuthenticationError
 )
+from ..clientManager import ClientManager
 
 router = APIRouter(tags=["health"])
 
 
-def get_api_client() -> APIClient:
+async def get_api_client() -> APIClient:
     """
-    Dependency to create and return an APIClient instance.
+    Dependency to get the shared APIClient instance.
     
     Returns:
-        APIClient: Configured API client instance
+        APIClient: Shared API client instance from ClientManager
     """
-    return APIClient()
+    return await ClientManager.get_client()
 
 
 @router.get("/health")
@@ -97,9 +98,6 @@ async def health_check(
                 "error": str(e)
             }
         )
-    finally:
-        # Clean up client resources
-        client.close()
 
 
 @router.get("/health/simple")

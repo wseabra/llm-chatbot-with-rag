@@ -85,7 +85,6 @@ class APIClient:
         
         try:
             response = self.session.request(method, url, **kwargs)
-            
             # Check for HTTP errors
             if response.status_code >= 400:
                 error_message = f"HTTP {response.status_code} error for {method} {url}"
@@ -206,12 +205,13 @@ class APIClient:
         
         # Make authentication request
         endpoint = '/auth-engine-api/v1/api-key/token'
-        
+        headers = {'Content-Type': 'application/json', 'Accept': '/', 'FlowTenant': 'cit'} 
         try:
             response = self._make_request(
                 'POST', 
                 endpoint, 
-                data=json.dumps(auth_request.to_dict())
+                data=json.dumps(auth_request.to_dict()),
+                headers=headers
             )
             
             # Parse JSON response
@@ -452,6 +452,8 @@ class APIClient:
         
         try:
             # Use _make_authenticated_request to POST the serialized request
+            self.session.headers['FlowTenant'] = 'cit'
+            self.session.headers['FlowAgent'] = 'llm-chatbot-with-rag'
             response = self._make_authenticated_request(
                 'POST',
                 endpoint,
