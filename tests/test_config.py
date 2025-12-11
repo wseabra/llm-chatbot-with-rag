@@ -9,6 +9,7 @@ and returns them as a dictionary.
 import pytest
 from unittest.mock import patch
 import os
+from pathlib import Path
 
 # Import the Config class
 from config import Config
@@ -66,6 +67,11 @@ class TestConfig:
         # Restore original values
         for key, value in original_values.items():
             os.environ[key] = value
+    
+    @pytest.fixture
+    def test_dotenv_path(self):
+        """Fixture providing path to test .env file."""
+        return Path(__file__).parent / '.env.test'
     
     @pytest.mark.unit
     @pytest.mark.config
@@ -277,13 +283,13 @@ class TestConfig:
     
     @pytest.mark.unit
     @pytest.mark.config
-    def test_config_loads_from_dotenv_file(self):
-        """Test that Config loads from .env file by default."""
-        # This test uses the actual .env file
-        config = Config()  # load_dotenv_file=True by default
+    def test_config_loads_from_test_dotenv_file(self, test_dotenv_path, clean_environment):
+        """Test that Config loads from test .env file with fictional data."""
+        # This test uses the test .env file with fictional data
+        config = Config(dotenv_path=str(test_dotenv_path))
         result = config.load_config()
         
-        # Should load values from .env file
+        # Should load fictional values from test .env file
         assert result['CLIENT_ID'] == 'test_client_123'
         assert result['CLIENT_SECRET'] == 'secret_key_456'
         assert result['RAG_FOLDER'] == '/path/to/rag/documents'
