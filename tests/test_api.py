@@ -2,7 +2,7 @@
 Unit tests for the API module.
 
 This module tests the API client functionality including health checks,
-error handling, and response validation following the project's testing standards.
+error handling, response validation, and authentication following the project's testing standards.
 """
 
 import pytest
@@ -18,7 +18,9 @@ from src.api import (
     APIConnectionError,
     APITimeoutError,
     APIHTTPError,
-    APIResponseError
+    APIResponseError,
+    APIAuthenticationError,
+    APIConfigurationError
 )
 
 
@@ -211,6 +213,8 @@ class TestAPIClient:
         assert client.timeout == 30
         assert hasattr(client, 'session')
         assert isinstance(client.session, requests.Session)
+        assert client._auth_response is None
+        assert not client.is_authenticated()
     
     @pytest.mark.unit
     @pytest.mark.api
@@ -225,6 +229,15 @@ class TestAPIClient:
         """Test APIClient handles base URL with trailing slash."""
         client = APIClient(base_url="https://api.example.com/")
         assert client.base_url == "https://api.example.com"
+    
+    @pytest.mark.unit
+    @pytest.mark.api
+    def test_api_client_init_with_config(self):
+        """Test APIClient initialization with config."""
+        mock_config = Mock()
+        client = APIClient(config=mock_config)
+        
+        assert client.config is mock_config
     
     @pytest.mark.unit
     @pytest.mark.api
@@ -270,6 +283,38 @@ class TestAPIClient:
         
         assert exc_info.value.status_code == 500
         assert "HTTP 500 error" in str(exc_info.value)
+    
+    @pytest.mark.unit
+    @pytest.mark.api
+    @patch('src.api.client.requests.Session.request')
+    def test_health_check_auth_error_401(self, mock_request, api_client):
+        """Test health check with 401 authentication error."""
+        mock_response = Mock()
+        mock_response.status_code = 401
+        mock_response.text = "Unauthorized"
+        mock_request.return_value = mock_response
+        
+        with pytest.raises(APIAuthenticationError) as exc_info:
+            api_client.health_check()
+        
+        assert exc_info.value.status_code == 401
+        assert "Authentication failed" in str(exc_info.value)
+    
+    @pytest.mark.unit
+    @pytest.mark.api
+    @patch('src.api.client.requests.Session.request')
+    def test_health_check_auth_error_403(self, mock_request, api_client):
+        """Test health check with 403 authorization error."""
+        mock_response = Mock()
+        mock_response.status_code = 403
+        mock_response.text = "Forbidden"
+        mock_request.return_value = mock_response
+        
+        with pytest.raises(APIAuthenticationError) as exc_info:
+            api_client.health_check()
+        
+        assert exc_info.value.status_code == 403
+        assert "Access forbidden" in str(exc_info.value)
     
     @pytest.mark.unit
     @pytest.mark.api
@@ -343,6 +388,19 @@ class TestAPIClient:
         api_client.close()
         
         api_client.session.close.assert_called_once()
+    
+    @pytest.mark.unit
+    @pytest.mark.api
+    def test_api_client_close_clears_auth(self, api_client):
+        """Test APIClient close method clears authentication."""
+        # Set up some auth state
+        api_client._auth_response = Mock()
+        api_client.session.headers['Authorization'] = 'Bearer token123'
+        
+        api_client.close()
+        
+        assert api_client._auth_response is None
+        assert 'Authorization' not in api_client.session.headers
     
     @pytest.mark.unit
     @pytest.mark.api
@@ -439,6 +497,46 @@ class TestAPIExceptions:
         assert "Invalid format" in str(error)
         assert error.response_data == '{"invalid": json}'
         assert isinstance(error, APIError)
+    
+    @pytest.mark.unit
+    @pytest.mark.api
+    def test_api_authentication_error(self):
+        """Test APIAuthenticationError exception."""
+        error = APIAuthenticationError("Auth failed", status_code=401, auth_type="token")
+        
+        assert "API Authentication Error 401 (token): Auth failed" in str(error)
+        assert error.status_code == 401
+        assert error.auth_type == "token"
+        assert isinstance(error, APIError)
+    
+    @pytest.mark.unit
+    @pytest.mark.api
+    def test_api_authentication_error_no_details(self):
+        """Test APIAuthenticationError without optional details."""
+        error = APIAuthenticationError("Auth failed")
+        
+        assert "API Authentication Error: Auth failed" in str(error)
+        assert error.status_code is None
+        assert error.auth_type is None
+    
+    @pytest.mark.unit
+    @pytest.mark.api
+    def test_api_configuration_error(self):
+        """Test APIConfigurationError exception."""
+        error = APIConfigurationError("Missing config", config_key="CLIENT_ID")
+        
+        assert "API Configuration Error (key: CLIENT_ID): Missing config" in str(error)
+        assert error.config_key == "CLIENT_ID"
+        assert isinstance(error, APIError)
+    
+    @pytest.mark.unit
+    @pytest.mark.api
+    def test_api_configuration_error_no_key(self):
+        """Test APIConfigurationError without config key."""
+        error = APIConfigurationError("Config error")
+        
+        assert "API Configuration Error: Config error" in str(error)
+        assert error.config_key is None
 
 
 class TestAPIIntegration:
@@ -482,8 +580,8 @@ class TestAPIParametrized:
     
     @pytest.mark.parametrize("status_code,expected_exception", [
         (400, APIHTTPError),
-        (401, APIHTTPError),
-        (403, APIHTTPError),
+        (401, APIAuthenticationError),
+        (403, APIAuthenticationError),
         (404, APIHTTPError),
         (500, APIHTTPError),
         (502, APIHTTPError),

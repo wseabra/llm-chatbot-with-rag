@@ -123,3 +123,56 @@ class APIResponseError(APIError):
     def __str__(self) -> str:
         """Return string representation of the response error."""
         return f"API Response Error: {self.message}"
+
+
+class APIAuthenticationError(APIError):
+    """
+    Exception raised when authentication fails.
+    
+    This includes invalid credentials, expired tokens,
+    and authentication service errors.
+    """
+    
+    def __init__(self, message: str, status_code: int = None, auth_type: str = None):
+        """
+        Initialize the APIAuthenticationError.
+        
+        Args:
+            message: Human-readable error description
+            status_code: Optional HTTP status code associated with the error
+            auth_type: Type of authentication that failed (e.g., 'credentials', 'token')
+        """
+        super().__init__(message, status_code)
+        self.auth_type = auth_type
+    
+    def __str__(self) -> str:
+        """Return string representation of the authentication error."""
+        auth_info = f" ({self.auth_type})" if self.auth_type else ""
+        if self.status_code:
+            return f"API Authentication Error {self.status_code}{auth_info}: {self.message}"
+        return f"API Authentication Error{auth_info}: {self.message}"
+
+
+class APIConfigurationError(APIError):
+    """
+    Exception raised when there are configuration-related issues.
+    
+    This includes missing configuration values, invalid settings,
+    and configuration loading errors.
+    """
+    
+    def __init__(self, message: str, config_key: str = None):
+        """
+        Initialize the APIConfigurationError.
+        
+        Args:
+            message: Human-readable error description
+            config_key: The configuration key that caused the error
+        """
+        super().__init__(message)
+        self.config_key = config_key
+    
+    def __str__(self) -> str:
+        """Return string representation of the configuration error."""
+        key_info = f" (key: {self.config_key})" if self.config_key else ""
+        return f"API Configuration Error{key_info}: {self.message}"
