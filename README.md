@@ -5,11 +5,12 @@ A sophisticated chatbot application built with FastAPI that integrates Large Lan
 ## 🚀 Features
 
 - **FastAPI Backend**: High-performance web framework for building APIs
+- **LLM Chat Completions**: Full Azure OpenAI-compatible chat completion API
 - **Authentication System**: Complete OAuth2-style authentication with token management
 - **API Client Module**: Robust HTTP client for external service communication
 - **Configuration Management**: Environment-based configuration using python-dotenv
 - **RAG Integration**: Retrieval-Augmented Generation for enhanced responses
-- **Comprehensive Testing**: Full test coverage with pytest (135 tests)
+- **Comprehensive Testing**: Full test coverage with pytest (183 tests)
 - **Clean Architecture**: Following SOLID principles and best practices
 - **Type Safety**: Full type annotations throughout the codebase
 - **Error Handling**: Comprehensive exception hierarchy for robust error management
@@ -26,8 +27,8 @@ llm-chatbot-with-rag/
 │   │   └── config.py           # Configuration management module
 │   └── api/
 │       ├── __init__.py
-│       ├── client.py           # HTTP API client with authentication
-│       ├── models.py           # Request/response models (Health, Auth)
+│       ├── client.py           # HTTP API client with chat completions
+│       ├── models.py           # Request/response models (Health, Auth, Chat)
 │       ├── exceptions.py       # Custom API exceptions
 │       └── README.md           # API module documentation
 ├── tests/
@@ -35,9 +36,10 @@ llm-chatbot-with-rag/
 │   ├── conftest.py            # Pytest configuration and fixtures
 │   ├── test_config.py         # Configuration module tests (31 tests)
 │   ├── test_api.py            # API module tests (51 tests)
-│   └── test_api_auth.py       # Authentication tests (53 tests)
+│   ├── test_api_auth.py       # Authentication tests (53 tests)
+│   └── test_api_chat.py       # Chat completion tests (48 tests)
 ├── examples/
-│   └── api_usage.py           # API usage examples with authentication
+│   └── api_usage.py           # Comprehensive API usage examples
 ├── .env                       # Environment variables (create from .env.example)
 ├── requirements.txt           # Python dependencies
 ├── pytest.ini               # Pytest configuration
@@ -86,9 +88,101 @@ The API will be available at `http://localhost:8000`
 
 ### API Usage Examples
 ```bash
-# Run the API usage examples (includes authentication demos)
+# Run comprehensive API usage examples (includes chat completions)
 python examples/api_usage.py
 ```
+
+## 💬 Chat Completion API
+
+The project now includes a complete chat completion system compatible with Azure OpenAI:
+
+### Simple Chat Completion (Convenience Method)
+```python
+from api import APIClient
+
+with APIClient() as client:
+    # Simple question with defaults (max_tokens=4096, temperature=0.7)
+    response = client.chat_completion("What is the capital of France?")
+    print(response.get_first_choice_content())
+    
+    # Custom parameters
+    response = client.chat_completion(
+        "Explain quantum computing in simple terms",
+        max_tokens=500,
+        temperature=0.5
+    )
+    print(f"AI Response: {response.get_first_choice_content()}")
+    print(f"Tokens used: {response.usage.total_tokens}")
+```
+
+### Advanced Chat Completion (Power User Method)
+```python
+from api import APIClient, ChatMessage, ChatCompletionRequest
+
+with APIClient() as client:
+    # Multi-turn conversation with system prompt
+    messages = [
+        ChatMessage(role="system", content="You are a helpful coding assistant."),
+        ChatMessage(role="user", content="How do I reverse a string in Python?"),
+        ChatMessage(role="assistant", content="You can use slicing: text[::-1]"),
+        ChatMessage(role="user", content="What about performance considerations?")
+    ]
+    
+    request = ChatCompletionRequest(
+        messages=messages,
+        max_tokens=300,
+        temperature=0.2,
+        allowed_models=["gpt-4"]
+    )
+    
+    response = client.send_chat_request(request)
+    print(f"Model used: {response.model}")
+    print(f"Response: {response.get_first_choice_content()}")
+    print(f"Usage: {response.usage}")
+```
+
+### Real-World Chat Scenarios
+```python
+from api import APIClient, ChatMessage, ChatCompletionRequest
+
+with APIClient() as client:
+    # Customer Support Chatbot (consistent responses)
+    support_messages = [
+        ChatMessage(role="system", content="You are a helpful customer support agent."),
+        ChatMessage(role="user", content="I'm having trouble with my order.")
+    ]
+    support_request = ChatCompletionRequest(
+        messages=support_messages,
+        temperature=0.3  # Lower temperature for consistency
+    )
+    
+    # Creative Writing Assistant (high creativity)
+    creative_request = ChatCompletionRequest(
+        messages=[ChatMessage(role="user", content="Write a haiku about programming")],
+        max_tokens=100,
+        temperature=0.8  # Higher temperature for creativity
+    )
+    
+    # Code Review Assistant (technical accuracy)
+    code_messages = [
+        ChatMessage(role="system", content="You are an expert code reviewer."),
+        ChatMessage(role="user", content="Review this Python function: def add(a, b): return a + b")
+    ]
+    code_request = ChatCompletionRequest(
+        messages=code_messages,
+        temperature=0.1  # Very low temperature for accuracy
+    )
+```
+
+### Chat Completion Features
+- **Dual API Design**: Simple convenience method + powerful advanced method
+- **Azure OpenAI Compatible**: Full format compatibility
+- **Default Parameters**: max_tokens=4096, temperature=0.7
+- **Multi-turn Conversations**: Support for conversation history
+- **System Prompts**: Role-based message handling (system/user/assistant)
+- **Token Usage Tracking**: Detailed usage statistics
+- **Model Selection**: Support for different AI models
+- **Comprehensive Validation**: Input validation with clear error messages
 
 ## 🔐 Authentication System
 
@@ -104,9 +198,9 @@ try:
         auth = client.authenticate()
         print(f"✅ Authenticated! Token expires in {auth.expires_in} seconds")
         
-        # Make authenticated requests
-        health = client.health_check(authenticated=True)
-        print(f"🏥 Authenticated health check: {health.result}")
+        # Make authenticated requests (chat completions require authentication)
+        response = client.chat_completion("Hello, how are you?")
+        print(f"🤖 AI Response: {response.get_first_choice_content()}")
         
 except APIAuthenticationError as e:
     print(f"❌ Authentication failed: {e}")
@@ -168,7 +262,7 @@ from api import (
 try:
     with APIClient() as client:
         auth = client.authenticate()
-        health = client.health_check(authenticated=True)
+        response = client.chat_completion("What is machine learning?")
         
 except APIConfigurationError as e:
     print(f"⚙️ Configuration error: {e}")
@@ -206,6 +300,8 @@ client = APIClient(config=custom_config)
   - Returns: `{"result": true, "timestamp": "2025-12-11T15:01:23.000Z"}`
 - **Authentication**: `POST /auth-engine-api/v1/api-key/token`
   - Automatic credential management via Config module
+- **Chat Completions**: `POST /ai-orchestration-api/v1/openai/chat/completions`
+  - Azure OpenAI compatible chat completion endpoint
 
 ## 🧪 Testing
 
@@ -224,6 +320,9 @@ pytest tests/test_api.py
 
 # Run only authentication tests
 pytest tests/test_api_auth.py
+
+# Run only chat completion tests
+pytest tests/test_api_chat.py
 
 # Run with verbose output
 pytest -v
@@ -259,7 +358,17 @@ The project includes comprehensive test coverage:
 - ✅ Token expiration tracking
 - ✅ Authorization header management
 
-**Total: 135 tests with comprehensive coverage**
+#### **Chat Completion Module (48 tests)**
+- ✅ Chat message validation and serialization
+- ✅ Request/response model validation
+- ✅ Convenience and power user methods
+- ✅ Multi-turn conversation support
+- ✅ Token usage tracking
+- ✅ Error handling and edge cases
+- ✅ Azure OpenAI compatibility
+- ✅ Integration scenarios
+
+**Total: 183 tests with comprehensive coverage**
 
 ## 📋 Configuration
 
@@ -303,7 +412,16 @@ The project follows clean architecture principles with modular design:
 
 ### **API Module (`src/api/`)**
 - **APIClient**: HTTP client with authentication, connection pooling, and error handling
+- **Chat Completion Methods**: 
+  - `chat_completion()`: Convenience method for simple use cases
+  - `send_chat_request()`: Power user method for advanced scenarios
 - **Authentication Models**: Type-safe `AuthRequest` and `AuthResponse` with validation
+- **Chat Models**: Complete Azure OpenAI compatible models:
+  - `ChatMessage`: Individual messages with role validation
+  - `ChatCompletionRequest`: Full request with defaults and validation
+  - `ChatCompletionResponse`: Complete response with usage tracking
+  - `ChatCompletionChoice`: Individual response choices
+  - `ChatCompletionUsage`: Token usage statistics
 - **Response Models**: `HealthResponse` with proper validation and utilities
 - **Exception Hierarchy**: Comprehensive error handling system
 - **Context Manager**: Automatic resource cleanup and session management
@@ -319,6 +437,7 @@ The project follows clean architecture principles with modular design:
 - **Repository Pattern**: Configuration and API access abstraction
 - **Factory Pattern**: Model creation from API responses
 - **Strategy Pattern**: Different authentication and error handling strategies
+- **Facade Pattern**: Simple interface over complex chat completion functionality
 - **KISS**: Keep It Simple, Stupid - intuitive APIs and clear interfaces
 - **DRY**: Don't Repeat Yourself - reusable components and utilities
 - **YAGNI**: You Aren't Gonna Need It - focused implementation without over-engineering
@@ -447,9 +566,10 @@ For questions or issues:
    - Main README.md - Overall project documentation
 
 2. **Run Examples**: Test functionality with provided examples
-   - `examples/api_usage.py` - API client and authentication examples
+   - `examples/api_usage.py` - Comprehensive API examples including chat completions
 
 3. **Check Tests**: Review test files for usage patterns
+   - `tests/test_api_chat.py` - Chat completion examples
    - `tests/test_api_auth.py` - Authentication examples
    - `tests/test_api.py` - API client examples
    - `tests/test_config.py` - Configuration examples
@@ -466,31 +586,39 @@ For questions or issues:
 - [x] Configuration management system with validation
 - [x] API client module with health check endpoint
 - [x] Complete authentication system with token management
-- [x] Comprehensive testing suite (135 tests)
+- [x] **LLM Chat Completions API with Azure OpenAI compatibility**
+- [x] **Dual API design (convenience + power user methods)**
+- [x] **Multi-turn conversation support**
+- [x] **Comprehensive chat completion testing (48 tests)**
+- [x] Comprehensive testing suite (183 tests total)
 - [x] Error handling and validation throughout
 - [x] Type safety and comprehensive documentation
 
 ### **In Progress 🚧**
-- [ ] LLM integration with CI&T Flow API using authentication
 - [ ] RAG document processing and indexing system
-- [ ] Chat interface implementation with authentication
+- [ ] Chat interface implementation with conversation history
+- [ ] FastAPI endpoints for chat completions
 
 ### **Future Enhancements 🔮**
+- [ ] Streaming chat completions support
+- [ ] Function calling capabilities
 - [ ] Token refresh and automatic re-authentication
 - [ ] Rate limiting and request caching
 - [ ] Monitoring, logging, and metrics collection
 - [ ] Docker containerization and deployment
 - [ ] CI/CD pipeline setup with automated testing
-- [ ] Additional API endpoints and functionality
 - [ ] WebSocket support for real-time communication
 - [ ] API versioning and backward compatibility
+- [ ] Batch processing for multiple requests
+- [ ] Response caching for repeated queries
 
 ## 📊 Project Statistics
 
-- **Total Lines of Code**: ~3,000+
-- **Test Coverage**: 135 comprehensive tests (100% pass rate)
+- **Total Lines of Code**: ~4,500+
+- **Test Coverage**: 183 comprehensive tests (100% pass rate)
 - **Modules**: 2 main modules (config, api) with full functionality
-- **API Endpoints**: 2 implemented (health check, authentication)
+- **API Endpoints**: 3 implemented (health check, authentication, chat completions)
+- **Chat Models**: 5 comprehensive models with full validation
 - **Dependencies**: 6 core + development dependencies
 - **Documentation**: 5+ README files + comprehensive inline documentation
 - **Architecture**: Clean Architecture with SOLID principles
@@ -500,9 +628,11 @@ For questions or issues:
 ## 🏆 Quality Metrics
 
 - **Code Quality**: Type-safe, well-documented, following best practices
-- **Test Coverage**: 135 tests covering unit, integration, and edge cases
+- **Test Coverage**: 183 tests covering unit, integration, and edge cases
 - **Error Resilience**: Comprehensive error handling and recovery
 - **Security**: Secure token handling and input validation
 - **Performance**: Connection pooling and efficient session management
 - **Maintainability**: Clean architecture with clear separation of concerns
 - **Extensibility**: Easy to add new endpoints and functionality
+- **Azure OpenAI Compatibility**: Full format compatibility for seamless integration
+- **Developer Experience**: Intuitive APIs with both simple and advanced usage patterns

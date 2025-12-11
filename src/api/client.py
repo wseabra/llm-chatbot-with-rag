@@ -11,7 +11,10 @@ import json
 from typing import Optional
 from urllib.parse import urljoin
 
-from .models import HealthResponse, AuthRequest, AuthResponse
+from .models import (
+    HealthResponse, AuthRequest, AuthResponse,
+    ChatMessage, ChatCompletionRequest, ChatCompletionResponse
+)
 from .exceptions import (
     APIConnectionError,
     APITimeoutError,
@@ -362,6 +365,121 @@ class APIClient:
             # Catch any unexpected errors
             raise APIResponseError(
                 message=f"Unexpected error during health check: {str(e)}"
+            ) from e
+    
+    def chat_completion(
+        self,
+        user_message: str,
+        max_tokens: int = 4096,
+        temperature: float = 0.7
+    ) -> ChatCompletionResponse:
+        """
+        Creates a simple, single-turn chat completion.
+        
+        This is a convenience method that constructs the request for you.
+        For multi-turn conversations or more advanced parameters, build a
+        ChatCompletionRequest object and use send_chat_request().
+        
+        Args:
+            user_message: The message from the user
+            max_tokens: The maximum number of tokens to generate. Defaults to 4096
+            temperature: The sampling temperature. Defaults to 0.7
+            
+        Returns:
+            ChatCompletionResponse with the AI-generated response
+            
+        Raises:
+            APIAuthenticationError: If authentication fails
+            APIConnectionError: For network connectivity issues
+            APITimeoutError: For request timeouts
+            APIHTTPError: For HTTP error status codes
+            APIResponseError: For invalid response format
+            ValueError: If user_message is empty or invalid
+        """
+        # Validate user_message
+        if not user_message or not user_message.strip():
+            raise ValueError("user_message cannot be empty or whitespace-only")
+        
+        try:
+            # Create a ChatMessage from the user_message
+            user_chat_message = ChatMessage(role="user", content=user_message.strip())
+            
+            # Create a ChatCompletionRequest object
+            request = ChatCompletionRequest(
+                messages=[user_chat_message],
+                max_tokens=max_tokens,
+                temperature=temperature
+            )
+            
+            # Call send_chat_request with the constructed request object
+            return self.send_chat_request(request)
+            
+        except ValueError as e:
+            # Re-raise validation errors
+            raise e
+        except Exception as e:
+            # Wrap unexpected errors
+            raise APIResponseError(
+                message=f"Unexpected error in chat_completion: {str(e)}"
+            ) from e
+    
+    def send_chat_request(self, request: ChatCompletionRequest) -> ChatCompletionResponse:
+        """
+        Sends a pre-built chat completion request to the API.
+        
+        This method gives full control over all request parameters by requiring
+        a complete ChatCompletionRequest object.
+        
+        Args:
+            request: A fully-formed ChatCompletionRequest object
+            
+        Returns:
+            ChatCompletionResponse with the AI-generated response
+            
+        Raises:
+            APIAuthenticationError: If authentication fails
+            APIConnectionError: For network connectivity issues
+            APITimeoutError: For request timeouts
+            APIHTTPError: For HTTP error status codes
+            APIResponseError: For invalid response format
+            ValueError: If request is invalid
+        """
+        # Validate request
+        if not isinstance(request, ChatCompletionRequest):
+            raise ValueError("request must be a ChatCompletionRequest instance")
+        
+        endpoint = '/ai-orchestration-api/v1/openai/chat/completions'
+        
+        try:
+            # Use _make_authenticated_request to POST the serialized request
+            response = self._make_authenticated_request(
+                'POST',
+                endpoint,
+                data=json.dumps(request.to_dict())
+            )
+            
+            # Parse the complex JSON response
+            try:
+                response_data = response.json()
+            except ValueError as e:
+                raise APIResponseError(
+                    message=f"Invalid JSON response from chat completions endpoint: {str(e)}",
+                    response_data=response.text
+                ) from e
+            
+            # Validate and deserialize the response into a ChatCompletionResponse object
+            chat_response = ChatCompletionResponse.from_dict(response_data)
+            
+            return chat_response
+            
+        except (APIConnectionError, APITimeoutError, APIHTTPError, 
+                APIResponseError, APIAuthenticationError):
+            # Re-raise API exceptions as-is
+            raise
+        except Exception as e:
+            # Catch any unexpected errors
+            raise APIResponseError(
+                message=f"Unexpected error during chat completion: {str(e)}"
             ) from e
     
     def close(self) -> None:
