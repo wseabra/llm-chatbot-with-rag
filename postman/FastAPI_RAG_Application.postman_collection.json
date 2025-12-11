@@ -1,0 +1,913 @@
+{
+	"info": {
+		"_postman_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+		"name": "FastAPI RAG Application",
+		"description": "Comprehensive test collection for the FastAPI RAG Application with flowApi integration.\n\nThis collection includes:\n- Health check endpoints\n- Chat completion endpoints (simple and advanced)\n- Error scenario testing\n- Environment variable support\n\nMake sure to set up the environment variables before running the tests.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "12345678"
+	},
+	"item": [
+		{
+			"name": "Health Checks",
+			"item": [
+				{
+					"name": "Root Endpoint",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response has correct structure\", function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('message');",
+									"    pm.expect(jsonData).to.have.property('status');",
+									"    pm.expect(jsonData).to.have.property('version');",
+									"    pm.expect(jsonData).to.have.property('description');",
+									"    pm.expect(jsonData).to.have.property('endpoints');",
+									"});",
+									"",
+									"pm.test(\"Application info is correct\", function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.message).to.eql('FastAPI RAG Application');",
+									"    pm.expect(jsonData.status).to.eql('success');",
+									"    pm.expect(jsonData.version).to.eql('1.0.0');",
+									"});",
+									"",
+									"pm.test(\"Response time is less than 1000ms\", function () {",
+									"    pm.expect(pm.response.responseTime).to.be.below(1000);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								""
+							]
+						},
+						"description": "Get application information and available endpoints."
+					},
+					"response": []
+				},
+				{
+					"name": "Simple Health Check",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Service is healthy\", function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.status).to.eql('healthy');",
+									"    pm.expect(jsonData.message).to.eql('Local service is running');",
+									"});",
+									"",
+									"pm.test(\"Response time is less than 500ms\", function () {",
+									"    pm.expect(pm.response.responseTime).to.be.below(500);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/health/simple",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"health",
+								"simple"
+							]
+						},
+						"description": "Check local service health status without external API validation."
+					},
+					"response": []
+				},
+				{
+					"name": "External API Health Check (Unauthenticated)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200, 503, or 502\", function () {",
+									"    pm.expect([200, 503, 502]).to.include(pm.response.code);",
+									"});",
+									"",
+									"pm.test(\"Response has correct structure\", function () {",
+									"    const jsonData = pm.response.json();",
+									"    if (pm.response.code === 200) {",
+									"        pm.expect(jsonData).to.have.property('status');",
+									"        pm.expect(jsonData).to.have.property('message');",
+									"        pm.expect(jsonData).to.have.property('external_api');",
+									"        pm.expect(jsonData.external_api.authenticated).to.be.false;",
+									"    } else {",
+									"        pm.expect(jsonData).to.have.property('detail');",
+									"        pm.expect(jsonData.detail).to.have.property('status');",
+									"    }",
+									"});",
+									"",
+									"pm.test(\"Response time is less than 10000ms\", function () {",
+									"    pm.expect(pm.response.responseTime).to.be.below(10000);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/health?authenticated=false",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"health"
+							],
+							"query": [
+								{
+									"key": "authenticated",
+									"value": "false"
+								}
+							]
+						},
+						"description": "Check both local service and external API health without authentication."
+					},
+					"response": []
+				},
+				{
+					"name": "External API Health Check (Authenticated)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200, 401, 503, or 502\", function () {",
+									"    pm.expect([200, 401, 503, 502]).to.include(pm.response.code);",
+									"});",
+									"",
+									"pm.test(\"Response has correct structure\", function () {",
+									"    const jsonData = pm.response.json();",
+									"    if (pm.response.code === 200) {",
+									"        pm.expect(jsonData).to.have.property('status');",
+									"        pm.expect(jsonData).to.have.property('external_api');",
+									"        pm.expect(jsonData.external_api.authenticated).to.be.true;",
+									"    } else {",
+									"        pm.expect(jsonData).to.have.property('detail');",
+									"        pm.expect(jsonData.detail).to.have.property('status');",
+									"    }",
+									"});",
+									"",
+									"pm.test(\"Response time is less than 15000ms\", function () {",
+									"    pm.expect(pm.response.responseTime).to.be.below(15000);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/health?authenticated=true",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"health"
+							],
+							"query": [
+								{
+									"key": "authenticated",
+									"value": "true"
+								}
+							]
+						},
+						"description": "Check both local service and external API health with authentication. May fail if credentials are not configured."
+					},
+					"response": []
+				}
+			],
+			"description": "Health check endpoints to verify service status and external API connectivity."
+		},
+		{
+			"name": "Chat Completion",
+			"item": [
+				{
+					"name": "Simple Chat Completion",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200, 401, 500, 502, or 503\", function () {",
+									"    pm.expect([200, 401, 500, 502, 503]).to.include(pm.response.code);",
+									"});",
+									"",
+									"pm.test(\"Response has correct structure\", function () {",
+									"    const jsonData = pm.response.json();",
+									"    if (pm.response.code === 200) {",
+									"        pm.expect(jsonData).to.have.property('id');",
+									"        pm.expect(jsonData).to.have.property('model');",
+									"        pm.expect(jsonData).to.have.property('content');",
+									"        pm.expect(jsonData).to.have.property('finish_reason');",
+									"        pm.expect(jsonData).to.have.property('usage');",
+									"        pm.expect(jsonData).to.have.property('created');",
+									"    } else {",
+									"        pm.expect(jsonData).to.have.property('detail');",
+									"    }",
+									"});",
+									"",
+									"if (pm.response.code === 200) {",
+									"    pm.test(\"Content is not empty\", function () {",
+									"        const jsonData = pm.response.json();",
+									"        pm.expect(jsonData.content).to.be.a('string');",
+									"        pm.expect(jsonData.content.length).to.be.above(0);",
+									"    });",
+									"    ",
+									"    pm.test(\"Usage information is present\", function () {",
+									"        const jsonData = pm.response.json();",
+									"        pm.expect(jsonData.usage).to.have.property('total_tokens');",
+									"        pm.expect(jsonData.usage.total_tokens).to.be.a('number');",
+									"    });",
+									"}",
+									"",
+									"pm.test(\"Response time is less than 30000ms\", function () {",
+									"    pm.expect(pm.response.responseTime).to.be.below(30000);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"message\": \"Hello! How are you today?\",\n    \"max_tokens\": 100,\n    \"temperature\": 0.7\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/chat/completion",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"chat",
+								"completion"
+							]
+						},
+						"description": "Simple chat completion for single-turn conversations. Requires external API credentials to be configured."
+					},
+					"response": []
+				},
+				{
+					"name": "Simple Chat with Custom Parameters",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200, 401, 500, 502, or 503\", function () {",
+									"    pm.expect([200, 401, 500, 502, 503]).to.include(pm.response.code);",
+									"});",
+									"",
+									"if (pm.response.code === 200) {",
+									"    pm.test(\"Response contains AI-generated content\", function () {",
+									"        const jsonData = pm.response.json();",
+									"        pm.expect(jsonData.content).to.be.a('string');",
+									"        pm.expect(jsonData.content.length).to.be.above(10);",
+									"    });",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"message\": \"Explain quantum computing in simple terms.\",\n    \"max_tokens\": 200,\n    \"temperature\": 0.3\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/chat/completion",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"chat",
+								"completion"
+							]
+						},
+						"description": "Chat completion with custom parameters - lower temperature for more focused responses."
+					},
+					"response": []
+				},
+				{
+					"name": "Advanced Chat Completion",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200, 401, 500, 502, or 503\", function () {",
+									"    pm.expect([200, 401, 500, 502, 503]).to.include(pm.response.code);",
+									"});",
+									"",
+									"pm.test(\"Response has correct structure\", function () {",
+									"    const jsonData = pm.response.json();",
+									"    if (pm.response.code === 200) {",
+									"        pm.expect(jsonData).to.have.property('id');",
+									"        pm.expect(jsonData).to.have.property('object');",
+									"        pm.expect(jsonData).to.have.property('created');",
+									"        pm.expect(jsonData).to.have.property('model');",
+									"        pm.expect(jsonData).to.have.property('choices');",
+									"        pm.expect(jsonData).to.have.property('usage');",
+									"        pm.expect(jsonData.choices).to.be.an('array');",
+									"        pm.expect(jsonData.choices.length).to.be.above(0);",
+									"    } else {",
+									"        pm.expect(jsonData).to.have.property('detail');",
+									"    }",
+									"});",
+									"",
+									"if (pm.response.code === 200) {",
+									"    pm.test(\"First choice has message content\", function () {",
+									"        const jsonData = pm.response.json();",
+									"        const firstChoice = jsonData.choices[0];",
+									"        pm.expect(firstChoice).to.have.property('message');",
+									"        pm.expect(firstChoice.message).to.have.property('content');",
+									"        pm.expect(firstChoice.message.content).to.be.a('string');",
+									"    });",
+									"}",
+									"",
+									"pm.test(\"Response time is less than 30000ms\", function () {",
+									"    pm.expect(pm.response.responseTime).to.be.below(30000);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"messages\": [\n        {\n            \"role\": \"system\",\n            \"content\": \"You are a helpful AI assistant specialized in technology and programming.\"\n        },\n        {\n            \"role\": \"user\",\n            \"content\": \"What is FastAPI and why is it popular?\"\n        }\n    ],\n    \"max_tokens\": 300,\n    \"temperature\": 0.5,\n    \"stream\": false,\n    \"allowed_models\": [\"gpt-4o-mini\"]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/chat/advanced",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"chat",
+								"advanced"
+							]
+						},
+						"description": "Advanced chat completion with system message and full parameter control."
+					},
+					"response": []
+				},
+				{
+					"name": "Multi-turn Conversation",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200, 401, 500, 502, or 503\", function () {",
+									"    pm.expect([200, 401, 500, 502, 503]).to.include(pm.response.code);",
+									"});",
+									"",
+									"if (pm.response.code === 200) {",
+									"    pm.test(\"Response acknowledges conversation context\", function () {",
+									"        const jsonData = pm.response.json();",
+									"        const content = jsonData.choices[0].message.content.toLowerCase();",
+									"        // Should reference the previous context about Python",
+									"        pm.expect(content).to.satisfy(function(text) {",
+									"            return text.includes('python') || text.includes('programming') || text.includes('language');",
+									"        });",
+									"    });",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"messages\": [\n        {\n            \"role\": \"user\",\n            \"content\": \"I'm learning Python programming. Can you help me?\"\n        },\n        {\n            \"role\": \"assistant\",\n            \"content\": \"Of course! I'd be happy to help you learn Python. What specific topic would you like to start with?\"\n        },\n        {\n            \"role\": \"user\",\n            \"content\": \"What are the main data types in this language?\"\n        }\n    ],\n    \"max_tokens\": 250,\n    \"temperature\": 0.6\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/chat/advanced",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"chat",
+								"advanced"
+							]
+						},
+						"description": "Multi-turn conversation demonstrating context awareness."
+					},
+					"response": []
+				}
+			],
+			"description": "Chat completion endpoints for AI-powered conversations."
+		},
+		{
+			"name": "Error Scenarios",
+			"item": [
+				{
+					"name": "Invalid Request - Missing Message",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 422\", function () {",
+									"    pm.response.to.have.status(422);",
+									"});",
+									"",
+									"pm.test(\"Error response has correct structure\", function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('detail');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"max_tokens\": 100,\n    \"temperature\": 0.7\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/chat/completion",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"chat",
+								"completion"
+							]
+						},
+						"description": "Test validation error when required message field is missing."
+					},
+					"response": []
+				},
+				{
+					"name": "Invalid Request - Empty Message",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 400\", function () {",
+									"    pm.response.to.have.status(400);",
+									"});",
+									"",
+									"pm.test(\"Error message mentions empty message\", function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData.detail.error).to.include('empty');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"message\": \"\",\n    \"max_tokens\": 100,\n    \"temperature\": 0.7\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/chat/completion",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"chat",
+								"completion"
+							]
+						},
+						"description": "Test business logic validation error when message is empty."
+					},
+					"response": []
+				},
+				{
+					"name": "Invalid Request - Invalid Parameters",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 422\", function () {",
+									"    pm.response.to.have.status(422);",
+									"});",
+									"",
+									"pm.test(\"Error response indicates validation failure\", function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('detail');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"message\": \"Hello\",\n    \"max_tokens\": 0,\n    \"temperature\": 3.0\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/chat/completion",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"chat",
+								"completion"
+							]
+						},
+						"description": "Test parameter validation with invalid max_tokens and temperature values."
+					},
+					"response": []
+				},
+				{
+					"name": "Invalid Advanced Chat - Empty Messages",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 400\", function () {",
+									"    pm.response.to.have.status(400);",
+									"});",
+									"",
+									"pm.test(\"Error response has correct structure\", function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('detail');",
+									"    pm.expect(jsonData.detail).to.have.property('status');",
+									"    pm.expect(jsonData.detail.status).to.eql('error');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"messages\": [],\n    \"max_tokens\": 100,\n    \"temperature\": 0.7\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/chat/advanced",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"chat",
+								"advanced"
+							]
+						},
+						"description": "Test validation error when messages array is empty."
+					},
+					"response": []
+				},
+				{
+					"name": "Invalid Advanced Chat - Invalid Role",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 400\", function () {",
+									"    pm.response.to.have.status(400);",
+									"});",
+									"",
+									"pm.test(\"Error mentions invalid role\", function () {",
+									"    const jsonData = pm.response.json();",
+									"    const errorText = JSON.stringify(jsonData).toLowerCase();",
+									"    pm.expect(errorText).to.satisfy(function(text) {",
+									"        return text.includes('role') || text.includes('invalid');",
+									"    });",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"messages\": [\n        {\n            \"role\": \"invalid_role\",\n            \"content\": \"Hello, this should fail\"\n        }\n    ],\n    \"max_tokens\": 100,\n    \"temperature\": 0.7\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/chat/advanced",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"chat",
+								"advanced"
+							]
+						},
+						"description": "Test validation error when message role is invalid."
+					},
+					"response": []
+				},
+				{
+					"name": "Non-existent Endpoint",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 404\", function () {",
+									"    pm.response.to.have.status(404);",
+									"});",
+									"",
+									"pm.test(\"Error response indicates not found\", function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('detail');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/nonexistent",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"nonexistent"
+							]
+						},
+						"description": "Test 404 error for non-existent endpoint."
+					},
+					"response": []
+				}
+			],
+			"description": "Test various error scenarios and validation failures."
+		},
+		{
+			"name": "Documentation",
+			"item": [
+				{
+					"name": "OpenAPI Documentation",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response is HTML\", function () {",
+									"    pm.expect(pm.response.headers.get('Content-Type')).to.include('text/html');",
+									"});",
+									"",
+									"pm.test(\"Contains Swagger UI\", function () {",
+									"    pm.expect(pm.response.text()).to.include('swagger');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/docs",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"docs"
+							]
+						},
+						"description": "Access the interactive API documentation (Swagger UI)."
+					},
+					"response": []
+				},
+				{
+					"name": "ReDoc Documentation",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response is HTML\", function () {",
+									"    pm.expect(pm.response.headers.get('Content-Type')).to.include('text/html');",
+									"});",
+									"",
+									"pm.test(\"Contains ReDoc\", function () {",
+									"    pm.expect(pm.response.text()).to.include('redoc');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/redoc",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"redoc"
+							]
+						},
+						"description": "Access the alternative API documentation (ReDoc)."
+					},
+					"response": []
+				},
+				{
+					"name": "OpenAPI Schema",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response is JSON\", function () {",
+									"    pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json');",
+									"});",
+									"",
+									"pm.test(\"Contains OpenAPI schema\", function () {",
+									"    const jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('openapi');",
+									"    pm.expect(jsonData).to.have.property('info');",
+									"    pm.expect(jsonData).to.have.property('paths');",
+									"    pm.expect(jsonData.info.title).to.eql('FastAPI RAG Application');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/openapi.json",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"openapi.json"
+							]
+						},
+						"description": "Get the OpenAPI schema in JSON format."
+					},
+					"response": []
+				}
+			],
+			"description": "Access API documentation and schema endpoints."
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"// Set default base URL if not already set",
+					"if (!pm.environment.get('base_url')) {",
+					"    pm.environment.set('base_url', 'http://localhost:8000');",
+					"}",
+					"",
+					"// Log the request being made",
+					"console.log('Making request to: ' + pm.request.url.toString());"
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"// Global test to check response format",
+					"pm.test(\"Response has valid JSON format\", function () {",
+					"    if (pm.response.headers.get('Content-Type') && pm.response.headers.get('Content-Type').includes('application/json')) {",
+					"        pm.response.to.be.json;",
+					"    }",
+					"});",
+					"",
+					"// Log response time for performance monitoring",
+					"console.log('Response time: ' + pm.response.responseTime + 'ms');"
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:8000",
+			"type": "string"
+		}
+	]
+}
