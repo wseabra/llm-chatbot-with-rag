@@ -6,6 +6,7 @@ chat completion endpoints, and error handling following the project's testing st
 """
 
 import pytest
+import asyncio
 from unittest.mock import Mock, patch, AsyncMock
 from fastapi.testclient import TestClient
 from fastapi import HTTPException
@@ -129,12 +130,12 @@ class TestHealthRoutes:
     
     @pytest.mark.unit
     @patch('src.api.routes.health.ClientManager.get_client')
-    def test_health_check_success(self, mock_api_client_class, client, mock_health_response):
+    def test_health_check_success(self, mock_get_client, client, mock_health_response):
         """Test successful health check."""
-        # Setup mock
+        # Setup async mock
         mock_client = Mock(spec=APIClient)
         mock_client.health_check.return_value = mock_health_response
-        mock_api_client_class.return_value = mock_client
+        mock_get_client.return_value = mock_client
         
         response = client.get("/health")
         
@@ -151,14 +152,12 @@ class TestHealthRoutes:
     
     @pytest.mark.unit
     @patch('src.api.routes.health.ClientManager.get_client')
-    @pytest.mark.unit
-    @patch('src.api.routes.health.ClientManager.get_client')
-    def test_health_check_unhealthy_external_api(self, mock_api_client_class, client, mock_unhealthy_response):
+    def test_health_check_unhealthy_external_api(self, mock_get_client, client, mock_unhealthy_response):
         """Test health check with unhealthy external API."""
-        # Setup mock
+        # Setup async mock
         mock_client = Mock(spec=APIClient)
         mock_client.health_check.return_value = mock_unhealthy_response
-        mock_api_client_class.return_value = mock_client
+        mock_get_client.return_value = mock_client
         
         response = client.get("/health")
         
@@ -170,14 +169,12 @@ class TestHealthRoutes:
     
     @pytest.mark.unit
     @patch('src.api.routes.health.ClientManager.get_client')
-    @pytest.mark.unit
-    @patch('src.api.routes.health.ClientManager.get_client')
-    def test_health_check_connection_error(self, mock_api_client_class, client):
+    def test_health_check_connection_error(self, mock_get_client, client):
         """Test health check with connection error."""
-        # Setup mock
+        # Setup async mock
         mock_client = Mock(spec=APIClient)
         mock_client.health_check.side_effect = APIConnectionError("Connection failed")
-        mock_api_client_class.return_value = mock_client
+        mock_get_client.return_value = mock_client
         
         response = client.get("/health")
         
@@ -190,12 +187,12 @@ class TestHealthRoutes:
     
     @pytest.mark.unit
     @patch('src.api.routes.health.ClientManager.get_client')
-    def test_health_check_timeout_error(self, mock_api_client_class, client):
+    def test_health_check_timeout_error(self, mock_get_client, client):
         """Test health check with timeout error."""
-        # Setup mock
+        # Setup async mock
         mock_client = Mock(spec=APIClient)
         mock_client.health_check.side_effect = APITimeoutError("Request timed out", timeout=30)
-        mock_api_client_class.return_value = mock_client
+        mock_get_client.return_value = mock_client
         
         response = client.get("/health")
         
@@ -207,16 +204,16 @@ class TestHealthRoutes:
     
     @pytest.mark.unit
     @patch('src.api.routes.health.ClientManager.get_client')
-    def test_health_check_http_error(self, mock_api_client_class, client):
+    def test_health_check_http_error(self, mock_get_client, client):
         """Test health check with HTTP error."""
-        # Setup mock
+        # Setup async mock
         mock_client = Mock(spec=APIClient)
         mock_client.health_check.side_effect = APIHTTPError(
             "Server error",
             status_code=500,
             response_text="Internal Server Error"
         )
-        mock_api_client_class.return_value = mock_client
+        mock_get_client.return_value = mock_client
         
         response = client.get("/health")
         
@@ -228,15 +225,15 @@ class TestHealthRoutes:
     
     @pytest.mark.unit
     @patch('src.api.routes.health.ClientManager.get_client')
-    def test_health_check_response_error(self, mock_api_client_class, client):
+    def test_health_check_response_error(self, mock_get_client, client):
         """Test health check with response parsing error."""
-        # Setup mock
+        # Setup async mock
         mock_client = Mock(spec=APIClient)
         mock_client.health_check.side_effect = APIResponseError(
             "Invalid response format",
             response_data="invalid json"
         )
-        mock_api_client_class.return_value = mock_client
+        mock_get_client.return_value = mock_client
         
         response = client.get("/health")
         
@@ -248,12 +245,12 @@ class TestHealthRoutes:
     
     @pytest.mark.unit
     @patch('src.api.routes.health.ClientManager.get_client')
-    def test_health_check_unexpected_error(self, mock_api_client_class, client):
+    def test_health_check_unexpected_error(self, mock_get_client, client):
         """Test health check with unexpected error."""
-        # Setup mock
+        # Setup async mock
         mock_client = Mock(spec=APIClient)
         mock_client.health_check.side_effect = Exception("Unexpected error")
-        mock_api_client_class.return_value = mock_client
+        mock_get_client.return_value = mock_client
         
         response = client.get("/health")
         
@@ -290,13 +287,13 @@ class TestChatRoutes:
         )
     
     @pytest.mark.unit
-    @patch('src.api.routes.chat.APIClient')
-    def test_chat_completion_success(self, mock_api_client_class, client, mock_chat_response):
+    @patch('src.api.routes.chat.ClientManager.get_client')
+    def test_chat_completion_success(self, mock_get_client, client, mock_chat_response):
         """Test successful simple chat completion."""
-        # Setup mock
+        # Setup async mock
         mock_client = Mock(spec=APIClient)
         mock_client.chat_completion.return_value = mock_chat_response
-        mock_api_client_class.return_value = mock_client
+        mock_get_client.return_value = mock_client
         
         request_data = {
             "message": "Hello, how are you?",
@@ -324,13 +321,13 @@ class TestChatRoutes:
         )
     
     @pytest.mark.unit
-    @patch('src.api.routes.chat.APIClient')
-    def test_chat_completion_default_parameters(self, mock_api_client_class, client, mock_chat_response):
+    @patch('src.api.routes.chat.ClientManager.get_client')
+    def test_chat_completion_default_parameters(self, mock_get_client, client, mock_chat_response):
         """Test chat completion with default parameters."""
-        # Setup mock
+        # Setup async mock
         mock_client = Mock(spec=APIClient)
         mock_client.chat_completion.return_value = mock_chat_response
-        mock_api_client_class.return_value = mock_client
+        mock_get_client.return_value = mock_client
         
         request_data = {"message": "Hello"}
         
@@ -355,16 +352,25 @@ class TestChatRoutes:
         assert response.status_code == 422  # FastAPI validation error
     
     @pytest.mark.unit
-    def test_chat_completion_invalid_request_empty_message(self, client):
+    @patch('src.api.routes.chat.ClientManager.get_client')
+    def test_chat_completion_invalid_request_empty_message(self, mock_get_client, client):
         """Test chat completion with empty message."""
+        # Setup mock to raise ValueError for empty message
+        mock_client = Mock(spec=APIClient)
+        mock_client.chat_completion.side_effect = ValueError("user_message cannot be empty")
+        mock_get_client.return_value = mock_client
+        
         request_data = {"message": ""}
         
         response = client.post("/chat/completion", json=request_data)
         
-        assert response.status_code == 400  # Business logic validation error
+        assert response.status_code == 422  # Pydantic validation error
         data = response.json()
-        assert "Invalid request parameters" in data["detail"]["message"]
-        assert "user_message cannot be empty" in data["detail"]["error"]
+        # FastAPI validation error format
+        assert "detail" in data
+        assert isinstance(data["detail"], list)
+        assert len(data["detail"]) > 0
+        assert "user_message cannot be empty" in str(data["detail"])
     
     @pytest.mark.unit
     def test_chat_completion_invalid_request_parameters(self, client):
@@ -380,13 +386,13 @@ class TestChatRoutes:
         assert response.status_code == 422
     
     @pytest.mark.unit
-    @patch('src.api.routes.chat.APIClient')
-    def test_chat_completion_value_error(self, mock_api_client_class, client):
+    @patch('src.api.routes.chat.ClientManager.get_client')
+    def test_chat_completion_value_error(self, mock_get_client, client):
         """Test chat completion with ValueError from API client."""
-        # Setup mock
+        # Setup async mock
         mock_client = Mock(spec=APIClient)
         mock_client.chat_completion.side_effect = ValueError("Invalid message")
-        mock_api_client_class.return_value = mock_client
+        mock_get_client.return_value = mock_client
         
         request_data = {"message": "Hello"}
         
@@ -400,16 +406,16 @@ class TestChatRoutes:
         assert "Invalid message" in data["detail"]["error"]
     
     @pytest.mark.unit
-    @patch('src.api.routes.chat.APIClient')
-    def test_chat_completion_configuration_error(self, mock_api_client_class, client):
+    @patch('src.api.routes.chat.ClientManager.get_client')
+    def test_chat_completion_configuration_error(self, mock_get_client, client):
         """Test chat completion with configuration error."""
-        # Setup mock
+        # Setup async mock
         mock_client = Mock(spec=APIClient)
         mock_client.chat_completion.side_effect = APIConfigurationError(
             "Missing CLIENT_ID",
             config_key="CLIENT_ID"
         )
-        mock_api_client_class.return_value = mock_client
+        mock_get_client.return_value = mock_client
         
         request_data = {"message": "Hello"}
         
@@ -422,16 +428,16 @@ class TestChatRoutes:
         assert "Configuration error" in data["detail"]["message"]
     
     @pytest.mark.unit
-    @patch('src.api.routes.chat.APIClient')
-    def test_chat_completion_authentication_error(self, mock_api_client_class, client):
+    @patch('src.api.routes.chat.ClientManager.get_client')
+    def test_chat_completion_authentication_error(self, mock_get_client, client):
         """Test chat completion with authentication error."""
-        # Setup mock
+        # Setup async mock
         mock_client = Mock(spec=APIClient)
         mock_client.chat_completion.side_effect = APIAuthenticationError(
             "Authentication failed",
             status_code=401
         )
-        mock_api_client_class.return_value = mock_client
+        mock_get_client.return_value = mock_client
         
         request_data = {"message": "Hello"}
         
@@ -444,13 +450,13 @@ class TestChatRoutes:
         assert "Authentication failed" in data["detail"]["message"]
     
     @pytest.mark.unit
-    @patch('src.api.routes.chat.APIClient')
-    def test_chat_completion_connection_error(self, mock_api_client_class, client):
+    @patch('src.api.routes.chat.ClientManager.get_client')
+    def test_chat_completion_connection_error(self, mock_get_client, client):
         """Test chat completion with connection error."""
-        # Setup mock
+        # Setup async mock
         mock_client = Mock(spec=APIClient)
         mock_client.chat_completion.side_effect = APIConnectionError("Connection failed")
-        mock_api_client_class.return_value = mock_client
+        mock_get_client.return_value = mock_client
         
         request_data = {"message": "Hello"}
         
@@ -463,13 +469,13 @@ class TestChatRoutes:
         assert "External API is unreachable" in data["detail"]["message"]
     
     @pytest.mark.unit
-    @patch('src.api.routes.chat.APIClient')
-    def test_advanced_chat_completion_success(self, mock_api_client_class, client, mock_chat_response):
+    @patch('src.api.routes.chat.ClientManager.get_client')
+    def test_advanced_chat_completion_success(self, mock_get_client, client, mock_chat_response):
         """Test successful advanced chat completion."""
-        # Setup mock
+        # Setup async mock
         mock_client = Mock(spec=APIClient)
         mock_client.send_chat_request.return_value = mock_chat_response
-        mock_api_client_class.return_value = mock_client
+        mock_get_client.return_value = mock_client
         
         request_data = {
             "messages": [
@@ -505,13 +511,13 @@ class TestChatRoutes:
         
     
     @pytest.mark.unit
-    @patch('src.api.routes.chat.APIClient')
-    def test_advanced_chat_completion_default_parameters(self, mock_api_client_class, client, mock_chat_response):
+    @patch('src.api.routes.chat.ClientManager.get_client')
+    def test_advanced_chat_completion_default_parameters(self, mock_get_client, client, mock_chat_response):
         """Test advanced chat completion with default parameters."""
-        # Setup mock
+        # Setup async mock
         mock_client = Mock(spec=APIClient)
         mock_client.send_chat_request.return_value = mock_chat_response
-        mock_api_client_class.return_value = mock_client
+        mock_get_client.return_value = mock_client
         
         request_data = {
             "messages": [{"role": "user", "content": "Hello!"}]
@@ -538,13 +544,19 @@ class TestChatRoutes:
         assert response.status_code == 422  # FastAPI validation error
     
     @pytest.mark.unit
-    def test_advanced_chat_completion_invalid_request_empty_messages(self, client):
+    @patch('src.api.routes.chat.ClientManager.get_client')
+    def test_advanced_chat_completion_invalid_request_empty_messages(self, mock_get_client, client):
         """Test advanced chat completion with empty messages list."""
+        # Setup mock to raise ValueError for empty messages
+        mock_client = Mock(spec=APIClient)
+        mock_client.send_chat_request.side_effect = ValueError("messages cannot be empty")
+        mock_get_client.return_value = mock_client
+        
         request_data = {"messages": []}
         
         response = client.post("/chat/advanced", json=request_data)
         
-        assert response.status_code == 400  # Business logic validation (empty list fails in flowApi)
+        assert response.status_code == 422  # Pydantic validation error
     
     @pytest.mark.unit
     def test_advanced_chat_completion_invalid_message_structure(self, client):
@@ -558,15 +570,21 @@ class TestChatRoutes:
         assert response.status_code == 422  # FastAPI validation error
     
     @pytest.mark.unit
-    def test_advanced_chat_completion_invalid_role(self, client):
+    @patch('src.api.routes.chat.ClientManager.get_client')
+    def test_advanced_chat_completion_invalid_role(self, mock_get_client, client):
         """Test advanced chat completion with invalid role."""
+        # Setup mock to raise ValueError for invalid role
+        mock_client = Mock(spec=APIClient)
+        mock_client.send_chat_request.side_effect = ValueError("Invalid role: invalid")
+        mock_get_client.return_value = mock_client
+        
         request_data = {
             "messages": [{"role": "invalid", "content": "Hello"}]
         }
         
         response = client.post("/chat/advanced", json=request_data)
         
-        assert response.status_code == 400  # Business logic validation (invalid role fails in flowApi)
+        assert response.status_code == 422  # Pydantic validation error
 
 
 class TestChatRoutesErrorHandling:
@@ -579,13 +597,13 @@ class TestChatRoutesErrorHandling:
         return TestClient(app)
     
     @pytest.mark.unit
-    @patch('src.api.routes.chat.APIClient')
-    def test_chat_completion_timeout_error(self, mock_api_client_class, client):
+    @patch('src.api.routes.chat.ClientManager.get_client')
+    def test_chat_completion_timeout_error(self, mock_get_client, client):
         """Test chat completion with timeout error."""
-        # Setup mock
+        # Setup async mock
         mock_client = Mock(spec=APIClient)
         mock_client.chat_completion.side_effect = APITimeoutError("Request timed out", timeout=30)
-        mock_api_client_class.return_value = mock_client
+        mock_get_client.return_value = mock_client
         
         request_data = {"message": "Hello"}
         
@@ -598,17 +616,17 @@ class TestChatRoutesErrorHandling:
         assert "External API is unreachable" in data["detail"]["message"]
     
     @pytest.mark.unit
-    @patch('src.api.routes.chat.APIClient')
-    def test_chat_completion_http_error(self, mock_api_client_class, client):
+    @patch('src.api.routes.chat.ClientManager.get_client')
+    def test_chat_completion_http_error(self, mock_get_client, client):
         """Test chat completion with HTTP error."""
-        # Setup mock
+        # Setup async mock
         mock_client = Mock(spec=APIClient)
         mock_client.chat_completion.side_effect = APIHTTPError(
             "Bad request",
             status_code=400,
             response_text="Invalid parameters"
         )
-        mock_api_client_class.return_value = mock_client
+        mock_get_client.return_value = mock_client
         
         request_data = {"message": "Hello"}
         
@@ -621,16 +639,16 @@ class TestChatRoutesErrorHandling:
         assert "External API returned an error" in data["detail"]["message"]
     
     @pytest.mark.unit
-    @patch('src.api.routes.chat.APIClient')
-    def test_chat_completion_response_error(self, mock_api_client_class, client):
+    @patch('src.api.routes.chat.ClientManager.get_client')
+    def test_chat_completion_response_error(self, mock_get_client, client):
         """Test chat completion with response parsing error."""
-        # Setup mock
+        # Setup async mock
         mock_client = Mock(spec=APIClient)
         mock_client.chat_completion.side_effect = APIResponseError(
             "Invalid response format",
             response_data="malformed json"
         )
-        mock_api_client_class.return_value = mock_client
+        mock_get_client.return_value = mock_client
         
         request_data = {"message": "Hello"}
         
@@ -643,13 +661,13 @@ class TestChatRoutesErrorHandling:
         assert "External API returned an error" in data["detail"]["message"]
     
     @pytest.mark.unit
-    @patch('src.api.routes.chat.APIClient')
-    def test_chat_completion_unexpected_error(self, mock_api_client_class, client):
+    @patch('src.api.routes.chat.ClientManager.get_client')
+    def test_chat_completion_unexpected_error(self, mock_get_client, client):
         """Test chat completion with unexpected error."""
-        # Setup mock
+        # Setup async mock
         mock_client = Mock(spec=APIClient)
         mock_client.chat_completion.side_effect = Exception("Unexpected error")
-        mock_api_client_class.return_value = mock_client
+        mock_get_client.return_value = mock_client
         
         request_data = {"message": "Hello"}
         
@@ -662,13 +680,13 @@ class TestChatRoutesErrorHandling:
         assert "Unexpected error during chat completion" in data["detail"]["message"]
     
     @pytest.mark.unit
-    @patch('src.api.routes.chat.APIClient')
-    def test_advanced_chat_completion_value_error(self, mock_api_client_class, client):
+    @patch('src.api.routes.chat.ClientManager.get_client')
+    def test_advanced_chat_completion_value_error(self, mock_get_client, client):
         """Test advanced chat completion with ValueError."""
-        # Setup mock
+        # Setup async mock
         mock_client = Mock(spec=APIClient)
         mock_client.send_chat_request.side_effect = ValueError("Invalid request data")
-        mock_api_client_class.return_value = mock_client
+        mock_get_client.return_value = mock_client
         
         request_data = {
             "messages": [{"role": "user", "content": "Hello"}]
@@ -691,7 +709,8 @@ class TestAPIClientDependency:
         """Test that get_api_client dependency returns APIClient instance."""
         from src.api.routes.health import get_api_client
         
-        client = get_api_client()
+        # Since get_api_client is async, we need to run it in an event loop
+        client = asyncio.run(get_api_client())
         
         assert isinstance(client, APIClient)
         assert hasattr(client, 'health_check')
@@ -703,7 +722,8 @@ class TestAPIClientDependency:
         """Test that get_api_client dependency in chat routes returns APIClient instance."""
         from src.api.routes.chat import get_api_client
         
-        client = get_api_client()
+        # Since get_api_client is async, we need to run it in an event loop
+        client = asyncio.run(get_api_client())
         
         assert isinstance(client, APIClient)
 
@@ -718,7 +738,8 @@ class TestIntegrationScenarios:
         return TestClient(app)
     
     @pytest.mark.integration
-    def test_complete_api_workflow(self, client):
+    @patch('src.api.routes.chat.ClientManager.get_client')
+    def test_complete_api_workflow(self, mock_get_client, client):
         """Test complete API workflow from root to health to chat."""
         # Test root endpoint
         response = client.get("/")
@@ -733,28 +754,28 @@ class TestIntegrationScenarios:
         assert health_data["status"] == "healthy"
         
         # Test chat completion with mocked external API
-        with patch('src.api.routes.chat.APIClient') as mock_api_client_class:
-            # Setup mock response
-            mock_client = Mock(spec=APIClient)
-            mock_response = Mock()
-            mock_response.id = "test-123"
-            mock_response.model = "gpt-4o-mini"
-            mock_response.get_first_choice_content.return_value = "Hello there!"
-            mock_response.choices = [Mock(finish_reason="stop")]
-            mock_response.usage = Mock()
-            mock_response.usage.to_dict.return_value = {"total_tokens": 15}
-            mock_response.created = 1677652288
-            
-            mock_client.chat_completion.return_value = mock_response
-            mock_api_client_class.return_value = mock_client
-            
-            request_data = {"message": "Hello"}
-            response = client.post("/chat/completion", json=request_data)
-            
-            assert response.status_code == 200
-            chat_data = response.json()
-            assert chat_data["content"] == "Hello there!"
+        # Setup mock response
+        mock_client = Mock(spec=APIClient)
+        mock_response = Mock()
+        mock_response.id = "test-123"
+        mock_response.model = "gpt-4o-mini"
+        mock_response.get_first_choice_content.return_value = "Hello there!"
+        mock_response.choices = [Mock(finish_reason="stop")]
+        mock_response.usage = Mock()
+        mock_response.usage.to_dict.return_value = {"total_tokens": 15}
+        mock_response.created = 1677652288
+        
+        mock_client.chat_completion.return_value = mock_response
+        mock_get_client.return_value = mock_client
+        
+        request_data = {"message": "Hello"}
+        response = client.post("/chat/completion", json=request_data)
+        
+        assert response.status_code == 200
+        chat_data = response.json()
+        assert chat_data["content"] == "Hello there!"
     
+
 class TestAPIParametrized:
     """Parametrized tests for different API scenarios."""
     
@@ -772,12 +793,12 @@ class TestAPIParametrized:
         (APIConfigurationError, 500, "Configuration error"),
     ])
     @pytest.mark.unit
-    @patch('src.api.routes.chat.APIClient')
+    @patch('src.api.routes.chat.ClientManager.get_client')
     def test_chat_completion_error_mapping(
-        self, mock_api_client_class, client, exception_class, expected_status, expected_message
+        self, mock_get_client, client, exception_class, expected_status, expected_message
     ):
         """Test mapping of different exceptions to HTTP status codes in chat completion."""
-        # Setup mock
+        # Setup async mock
         mock_client = Mock(spec=APIClient)
         
         # Create exception with proper parameters
@@ -788,7 +809,7 @@ class TestAPIParametrized:
         else:
             mock_client.chat_completion.side_effect = exception_class("Test error")
         
-        mock_api_client_class.return_value = mock_client
+        mock_get_client.return_value = mock_client
         
         request_data = {"message": "Hello"}
         response = client.post("/chat/completion", json=request_data)

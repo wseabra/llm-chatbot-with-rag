@@ -565,9 +565,6 @@ class TestAPIClientAuthentication:
         assert client._auth_response is None
         assert 'Authorization' not in client.session.headers
     
-    @pytest.mark.unit
-    @pytest.mark.api
-    @patch('src.flowApi.client.requests.Session.request')
 
 
 class TestAPIClientAuthenticationIntegration:

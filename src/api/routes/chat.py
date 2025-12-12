@@ -6,7 +6,7 @@ to interact with the external AI service.
 """
 
 from fastapi import APIRouter, HTTPException, Depends
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, validator
 from typing import List, Optional
 
 from ...flowApi.client import APIClient
@@ -25,6 +25,20 @@ class ChatMessageModel(BaseModel):
     """Pydantic model for chat message validation."""
     role: str = Field(..., description="Message role: 'system', 'user', or 'assistant'")
     content: str = Field(..., description="Message content")
+    
+    @validator('role')
+    def validate_role(cls, v):
+        """Validate message role."""
+        if v not in ['system', 'user', 'assistant']:
+            raise ValueError(f"Invalid role: {v}. Must be 'system', 'user', or 'assistant'")
+        return v
+    
+    @validator('content')
+    def validate_content(cls, v):
+        """Validate message content is not empty."""
+        if not v or not v.strip():
+            raise ValueError("Message content cannot be empty")
+        return v.strip()
 
 
 class SimpleChatRequest(BaseModel):
@@ -32,6 +46,13 @@ class SimpleChatRequest(BaseModel):
     message: str = Field(..., description="User message content")
     max_tokens: int = Field(default=4096, ge=1, le=8192, description="Maximum tokens to generate")
     temperature: float = Field(default=0.7, ge=0.0, le=2.0, description="Sampling temperature")
+    
+    @validator('message')
+    def validate_message(cls, v):
+        """Validate message is not empty."""
+        if not v or not v.strip():
+            raise ValueError("user_message cannot be empty")
+        return v.strip()
 
 
 class AdvancedChatRequest(BaseModel):
@@ -41,6 +62,13 @@ class AdvancedChatRequest(BaseModel):
     temperature: float = Field(default=0.7, ge=0.0, le=2.0, description="Sampling temperature")
     stream: bool = Field(default=False, description="Whether to stream the response")
     allowed_models: List[str] = Field(default=["gpt-4o-mini"], description="List of allowed models")
+    
+    @validator('messages')
+    def validate_messages(cls, v):
+        """Validate messages list is not empty."""
+        if not v:
+            raise ValueError("messages cannot be empty")
+        return v
 
 
 async def get_api_client() -> APIClient:

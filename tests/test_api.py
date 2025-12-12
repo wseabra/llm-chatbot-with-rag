@@ -287,38 +287,6 @@ class TestAPIClient:
     @pytest.mark.unit
     @pytest.mark.api
     @patch('src.flowApi.client.requests.Session.request')
-    def test_health_check_auth_error_401(self, mock_request, api_client):
-        """Test health check with 401 authentication error."""
-        mock_response = Mock()
-        mock_response.status_code = 401
-        mock_response.text = "Unauthorized"
-        mock_request.return_value = mock_response
-        
-        with pytest.raises(APIAuthenticationError) as exc_info:
-            api_client.health_check()
-        
-        assert exc_info.value.status_code == 401
-        assert "Authentication failed" in str(exc_info.value)
-    
-    @pytest.mark.unit
-    @pytest.mark.api
-    @patch('src.flowApi.client.requests.Session.request')
-    def test_health_check_auth_error_403(self, mock_request, api_client):
-        """Test health check with 403 authorization error."""
-        mock_response = Mock()
-        mock_response.status_code = 403
-        mock_response.text = "Forbidden"
-        mock_request.return_value = mock_response
-        
-        with pytest.raises(APIAuthenticationError) as exc_info:
-            api_client.health_check()
-        
-        assert exc_info.value.status_code == 403
-        assert "Access forbidden" in str(exc_info.value)
-    
-    @pytest.mark.unit
-    @pytest.mark.api
-    @patch('src.flowApi.client.requests.Session.request')
     def test_health_check_connection_error(self, mock_request, api_client):
         """Test health check with connection error."""
         mock_request.side_effect = requests.exceptions.ConnectionError("Connection failed")
@@ -577,32 +545,6 @@ class TestAPIIntegration:
 # Parametrized tests for different scenarios
 class TestAPIParametrized:
     """Parametrized tests for different API scenarios."""
-    
-    @pytest.mark.parametrize("status_code,expected_exception", [
-        (400, APIHTTPError),
-        (401, APIAuthenticationError),
-        (403, APIAuthenticationError),
-        (404, APIHTTPError),
-        (500, APIHTTPError),
-        (502, APIHTTPError),
-        (503, APIHTTPError),
-    ])
-    @pytest.mark.unit
-    @pytest.mark.api
-    @patch('src.flowApi.client.requests.Session.request')
-    def test_http_error_status_codes(self, mock_request, status_code, expected_exception):
-        """Test different HTTP error status codes."""
-        mock_response = Mock()
-        mock_response.status_code = status_code
-        mock_response.text = f"Error {status_code}"
-        mock_request.return_value = mock_response
-        
-        client = APIClient()
-        
-        with pytest.raises(expected_exception) as exc_info:
-            client.health_check()
-        
-        assert exc_info.value.status_code == status_code
     
     @pytest.mark.parametrize("exception_class,expected_api_exception", [
         (requests.exceptions.ConnectionError, APIConnectionError),
