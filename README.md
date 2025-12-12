@@ -1,15 +1,22 @@
 # LLM Chatbot with RAG
 
-A sophisticated FastAPI application with Retrieval-Augmented Generation (RAG) capabilities, featuring comprehensive chat completion APIs, robust authentication, and extensive testing infrastructure.
+A sophisticated FastAPI application with Retrieval-Augmented Generation (RAG) capabilities, featuring comprehensive chat completion APIs, robust authentication, document processing, and extensive testing infrastructure.
 
 ## 🚀 **Features**
 
 ### **🎯 Core Functionality**
 - **FastAPI Backend**: High-performance web framework with automatic OpenAPI documentation
 - **Chat Completion API**: Full Azure OpenAI-compatible chat completion endpoints
+- **RAG Document Processing**: Complete document loading, processing, and embedding preparation
 - **Health Monitoring**: Comprehensive health check system for local and external services
 - **Authentication System**: Complete OAuth2-style token management with automatic refresh
-- **RAG Integration**: Retrieval-Augmented Generation capabilities (in development)
+
+### **📚 RAG Capabilities**
+- **Document Loading**: Support for `.txt`, `.md`, and `.pdf` files with recursive folder scanning
+- **Document Processing**: Intelligent text chunking with configurable parameters using LangChain
+- **Embedding Interface**: Abstract embedding system with Sentence Transformers integration
+- **Configuration Management**: Flexible processing and embedding configuration options
+- **Error Handling**: Comprehensive RAG-specific exception hierarchy
 
 ### **🏗️ Architecture & Quality**
 - **Clean Architecture**: Following SOLID principles and separation of concerns
@@ -20,10 +27,10 @@ A sophisticated FastAPI application with Retrieval-Augmented Generation (RAG) ca
 - **Resource Management**: Automatic cleanup with context managers
 
 ### **🧪 Testing & Documentation**
-- **Comprehensive Testing**: 267 tests with 100% pass rate across all modules
+- **Comprehensive Testing**: 291 tests with 100% pass rate across all modules
 - **Postman Collection**: Complete API testing suite with 17 automated tests
 - **Interactive Documentation**: Auto-generated Swagger UI and ReDoc documentation
-- **Usage Examples**: Comprehensive examples for all major functionality
+- **Usage Examples**: Comprehensive examples for all major functionality including RAG
 
 ## 📁 **Project Structure**
 
@@ -34,6 +41,7 @@ llm-chatbot-with-rag/
 │   ├── api/                      # FastAPI application module
 │   │   ├── __init__.py
 │   │   ├── app.py               # FastAPI app factory
+│   │   ├── clientManager.py     # API client management
 │   │   └── routes/              # API route definitions
 │   │       ├── root.py          # Root and info endpoints
 │   │       ├── health.py        # Health check endpoints
@@ -44,17 +52,27 @@ llm-chatbot-with-rag/
 │   │   ├── models.py            # Request/response models
 │   │   ├── exceptions.py        # Custom exception hierarchy
 │   │   └── README.md            # API client documentation
+│   ├── rag/                      # RAG document processing module
+│   │   ├── __init__.py
+│   │   ├── document_loader.py   # Document loading and file operations
+│   │   ├── document_processor.py # Document parsing and chunking
+│   │   ├── embeddings.py        # Embedding configuration and providers
+│   │   ├── exceptions.py        # RAG-specific exceptions
+│   │   └── README.md            # RAG module documentation
 │   └── config/                   # Configuration management
 │       ├── __init__.py
 │       └── config.py            # Environment configuration loader
-├── tests/                        # Test suite (267 tests)
+├── tests/                        # Test suite (291 tests)
 │   ├── conftest.py              # Pytest configuration and fixtures
 │   ├── test_main.py             # Main application tests (31 tests)
 │   ├── test_api_routes.py       # FastAPI route tests (84 tests)
 │   ├── test_config.py           # Configuration tests (49 tests)
 │   ├── test_api.py              # API client tests (51 tests)
 │   ├── test_api_auth.py         # Authentication tests (53 tests)
-│   └── test_api_chat.py         # Chat completion tests (48 tests)
+│   ├── test_api_chat.py         # Chat completion tests (48 tests)
+│   ├── test_rag_document_loader.py    # RAG document loading tests
+│   ├── test_rag_document_processor.py # RAG document processing tests
+│   └── test_rag_embeddings.py   # RAG embedding tests
 ├── postman/                      # API testing collection
 │   ├── FastAPI_RAG_Application.postman_collection.json
 │   ├── FastAPI_RAG_Environment.postman_environment.json
@@ -63,7 +81,8 @@ llm-chatbot-with-rag/
 │   ├── run_tests.sh             # Linux/Mac test runner
 │   └── run_tests.bat            # Windows test runner
 ├── examples/
-│   └── api_usage.py             # Comprehensive usage examples
+│   ├── api_usage.py             # Comprehensive API usage examples
+│   └── rag_usage.py             # Complete RAG functionality examples
 ├── .env.example                  # Environment variables template
 ├── requirements.txt              # Python dependencies
 ├── pytest.ini                   # Pytest configuration
@@ -97,10 +116,22 @@ CLIENT_SECRET=your_client_secret_here
 RAG_FOLDER=/path/to/your/rag/documents
 ```
 
-### **3. Verify Installation**
+### **3. Prepare RAG Documents**
+```bash
+# Create documents folder
+mkdir -p /path/to/your/rag/documents
+
+# Add some sample documents (.txt, .md, .pdf files)
+echo "This is a sample document for RAG processing." > /path/to/your/rag/documents/sample.txt
+```
+
+### **4. Verify Installation**
 ```bash
 # Run tests to verify setup
 python -m pytest tests/ -v
+
+# Test RAG functionality
+python examples/rag_usage.py
 
 # Start the application
 python src/main.py
@@ -235,6 +266,100 @@ with APIClient() as client:
     print(f"Tokens used: {response.usage.total_tokens}")
 ```
 
+## 📚 **RAG Document Processing**
+
+### **Basic Document Loading**
+```python
+from src.rag import DocumentLoader
+
+# Initialize loader with documents folder
+loader = DocumentLoader("/path/to/documents")
+
+# Get document statistics
+stats = loader.get_document_stats()
+print(f"Found {stats['total_documents']} documents")
+
+# Load all documents
+documents = loader.load_documents(recursive=True)
+```
+
+### **Document Processing and Chunking**
+```python
+from src.rag import DocumentProcessor, ProcessingConfig
+
+# Configure processing parameters
+config = ProcessingConfig(
+    chunk_size=1000,
+    chunk_overlap=200,
+    separators=["\n\n", "\n", ". ", " "]
+)
+
+# Initialize processor
+processor = DocumentProcessor(config)
+
+# Process documents
+processed_docs = processor.process_documents(documents)
+
+# Get processing statistics
+stats = processor.get_processing_stats(processed_docs)
+print(f"Created {stats['total_chunks']} chunks")
+```
+
+### **Embedding Preparation**
+```python
+from src.rag import EmbeddingManager, EmbeddingConfig, EmbeddingModelType
+
+# Configure embedding model
+config = EmbeddingConfig(
+    model_type=EmbeddingModelType.SENTENCE_TRANSFORMERS,
+    model_name="all-MiniLM-L6-v2",
+    batch_size=32
+)
+
+# Initialize embedding manager
+manager = EmbeddingManager(config)
+manager.initialize()
+
+# Generate embeddings for document chunks
+all_chunks = []
+for doc in processed_docs:
+    all_chunks.extend(doc.chunks)
+
+embedded_docs = manager.embed_document_chunks(all_chunks)
+
+# Generate query embedding
+query_embedding = manager.embed_query("What is machine learning?")
+```
+
+### **Complete RAG Workflow**
+```python
+from src.config.config import Config
+from src.rag import DocumentLoader, DocumentProcessor, EmbeddingManager
+
+# Load configuration
+config = Config()
+config_dict = config.load_config()
+
+# Document loading
+loader = DocumentLoader(config_dict['RAG_FOLDER'])
+documents = loader.load_documents()
+
+# Document processing
+processor = DocumentProcessor()
+processed_docs = processor.process_documents(documents)
+
+# Embedding preparation
+embedding_manager = EmbeddingManager()
+embedding_manager.initialize()
+
+# Process all chunks
+all_chunks = []
+for doc in processed_docs:
+    all_chunks.extend(doc.chunks)
+
+embedded_docs = embedding_manager.embed_document_chunks(all_chunks)
+```
+
 ## 🔐 **Authentication System**
 
 The application includes a complete authentication system for external API access:
@@ -276,7 +401,7 @@ except APIAuthenticationError as e:
 
 ### **Run All Tests**
 ```bash
-# Run complete test suite (267 tests)
+# Run complete test suite (291 tests)
 python -m pytest
 
 # Run with verbose output
@@ -305,6 +430,15 @@ python -m pytest tests/test_api_auth.py -v
 
 # Chat completion features (48 tests)
 python -m pytest tests/test_api_chat.py -v
+
+# RAG document loading
+python -m pytest tests/test_rag_document_loader.py -v
+
+# RAG document processing
+python -m pytest tests/test_rag_document_processor.py -v
+
+# RAG embedding functionality
+python -m pytest tests/test_rag_embeddings.py -v
 ```
 
 ### **Test Categories Overview**
@@ -317,7 +451,10 @@ python -m pytest tests/test_api_chat.py -v
 | **Chat Completion** | 48 | Chat models, conversations, Azure OpenAI compatibility |
 | **Configuration** | 49 | Environment loading, validation, edge cases |
 | **Main Application** | 31 | App initialization, startup, integration |
-| **Total** | **267** | **100% pass rate** |
+| **RAG Document Loader** | 25+ | Document loading, file validation, statistics |
+| **RAG Document Processor** | 20+ | Text chunking, processing configuration |
+| **RAG Embeddings** | 15+ | Embedding generation, model management |
+| **Total** | **291** | **100% pass rate** |
 
 ## 🧪 **Postman API Testing**
 
@@ -361,6 +498,14 @@ run_tests.bat                     # Windows
 | `CLIENT_SECRET` | Yes | External API client secret | `your_secret_key` |
 | `RAG_FOLDER` | Yes | Path to RAG documents directory | `/path/to/documents` |
 
+### **Optional RAG Configuration**
+
+| Variable | Default | Description | Example |
+|----------|---------|-------------|---------|
+| `EMBEDDING_MODEL_TYPE` | `sentence-transformers` | Embedding model type | `sentence-transformers` |
+| `EMBEDDING_MODEL_NAME` | `all-MiniLM-L6-v2` | Specific embedding model | `all-mpnet-base-v2` |
+| `EMBEDDING_BATCH_SIZE` | `32` | Batch size for embedding generation | `16` |
+
 ### **Configuration Features**
 - **Environment Loading**: Automatic .env file loading with python-dotenv
 - **Validation**: Ensures all required variables are present and valid
@@ -403,6 +548,12 @@ rag_folder = settings['RAG_FOLDER']
 - **Authentication**: Automatic token management and refresh
 - **Models**: Type-safe request/response models with validation
 - **Exception Hierarchy**: Comprehensive error handling system
+
+#### **📚 RAG Module (`src/rag/`)**
+- **Document Loading**: File system operations and document validation
+- **Document Processing**: Text chunking and preprocessing with LangChain
+- **Embedding Interface**: Abstract embedding system with multiple providers
+- **Configuration**: Flexible processing and embedding configuration
 
 #### **⚙️ Configuration (`src/config/`)**
 - **Environment Management**: Secure configuration loading
@@ -461,6 +612,24 @@ def test_new_endpoint_success(client):
     assert response.status_code == 200
 ```
 
+### **Extending RAG Functionality**
+
+1. **Add New Document Type**:
+```python
+# In src/rag/document_loader.py
+def is_supported_file(self, file_path: Path) -> bool:
+    supported_extensions = {'.txt', '.md', '.pdf', '.docx'}  # Add new type
+    return file_path.suffix.lower() in supported_extensions
+```
+
+2. **Add Custom Processing**:
+```python
+# In src/rag/document_processor.py
+def process_custom_document(self, document: DocumentMetadata) -> ProcessedDocument:
+    # Custom processing logic
+    pass
+```
+
 ### **Development Guidelines**
 - **Type Hints**: Use type annotations for all functions and methods
 - **Error Handling**: Handle errors gracefully with specific exceptions
@@ -475,6 +644,7 @@ def test_new_endpoint_success(client):
 - **Input Validation**: All inputs validated and sanitized
 - **Environment Variables**: Sensitive data in environment variables only
 - **Session Management**: Automatic cleanup and secure session handling
+- **File Access Control**: Safe document loading with permission checks
 
 ### **Error Handling Hierarchy**
 ```
@@ -485,6 +655,13 @@ APIError (base exception)
 ├── APIAuthenticationError (auth failures)
 ├── APIResponseError (invalid response format)
 └── APIConfigurationError (config issues)
+
+RAGError (base RAG exception)
+├── DocumentLoadError (document loading failures)
+├── DocumentProcessingError (processing failures)
+├── UnsupportedFileTypeError (unsupported formats)
+├── FileAccessError (permission issues)
+└── EmbeddingError (embedding generation failures)
 ```
 
 ### **HTTP Status Code Mapping**
@@ -499,30 +676,36 @@ APIError (base exception)
 ## 📊 **Project Statistics**
 
 ### **Codebase Metrics**
-- **Total Files**: 50+ source and test files
-- **Lines of Code**: ~6,000+ lines (source + tests)
-- **Test Coverage**: 267 tests with 100% pass rate
-- **Modules**: 3 main modules (api, flowApi, config)
-- **Dependencies**: 8 core + development dependencies
+- **Total Files**: 60+ source and test files
+- **Lines of Code**: ~8,000+ lines (source + tests)
+- **Test Coverage**: 291 tests with 100% pass rate
+- **Modules**: 4 main modules (api, flowApi, rag, config)
+- **Dependencies**: 15 core + development dependencies
 
 ### **API Metrics**
 - **Endpoints**: 6 implemented endpoints
-- **Models**: 10+ comprehensive data models
-- **Exception Types**: 6 custom exception classes
+- **Models**: 15+ comprehensive data models
+- **Exception Types**: 12 custom exception classes
 - **Authentication**: Complete OAuth2-style token system
 
+### **RAG Metrics**
+- **Supported File Types**: 3 (.txt, .md, .pdf)
+- **Processing Strategies**: Configurable chunking with LangChain
+- **Embedding Models**: Sentence Transformers integration
+- **Configuration Options**: Multiple processing and embedding configs
+
 ### **Testing Metrics**
-- **Unit Tests**: 267 comprehensive tests
+- **Unit Tests**: 291 comprehensive tests
 - **Integration Tests**: Cross-module functionality testing
 - **API Tests**: 17 Postman collection tests
 - **Coverage**: All major code paths and error scenarios
 - **Performance**: Response time validation and monitoring
 
 ### **Documentation Metrics**
-- **README Files**: 5+ comprehensive documentation files
+- **README Files**: 6+ comprehensive documentation files
 - **Code Documentation**: Inline docstrings throughout
 - **API Documentation**: Auto-generated OpenAPI/Swagger docs
-- **Usage Examples**: Complete examples for all major features
+- **Usage Examples**: Complete examples for all major features including RAG
 
 ## 🔮 **Roadmap**
 
@@ -530,7 +713,9 @@ APIError (base exception)
 - [x] FastAPI application with comprehensive routing
 - [x] Complete authentication system with token management
 - [x] Chat completion API with Azure OpenAI compatibility
-- [x] Comprehensive testing suite (267 tests)
+- [x] RAG document loading and processing system
+- [x] Embedding interface with Sentence Transformers integration
+- [x] Comprehensive testing suite (291 tests)
 - [x] Postman collection for API testing (17 tests)
 - [x] Health monitoring and error handling
 - [x] Configuration management with validation
@@ -538,9 +723,10 @@ APIError (base exception)
 - [x] Clean architecture with SOLID principles
 
 ### **🚧 In Progress**
-- [ ] RAG document processing and indexing
+- [ ] Vector database integration (ChromaDB)
+- [ ] Similarity search implementation
+- [ ] RAG-enhanced chat completions
 - [ ] Streaming chat completions
-- [ ] Enhanced error recovery and retry logic
 
 ### **🔮 Future Enhancements**
 - [ ] WebSocket support for real-time communication
@@ -550,7 +736,9 @@ APIError (base exception)
 - [ ] Docker containerization
 - [ ] CI/CD pipeline with automated testing
 - [ ] Batch processing for multiple requests
-- [ ] Advanced RAG features (document chunking, embeddings)
+- [ ] Advanced RAG features (metadata filtering, hybrid search)
+- [ ] Additional document formats (Word, PowerPoint, etc.)
+- [ ] Multi-modal document processing (images, tables)
 
 ## 🤝 **Contributing**
 
@@ -576,11 +764,14 @@ APIError (base exception)
 ### **Project Documentation**
 - **Main README**: This file - comprehensive project overview
 - **API Client**: `src/flowApi/README.md` - detailed API client documentation
+- **RAG Module**: `src/rag/README.md` - complete RAG functionality guide
 - **Postman Collection**: `postman/README.md` - API testing guide
 - **Setup Guide**: `postman/SETUP_GUIDE.md` - quick 5-minute setup
 
 ### **External Resources**
 - **FastAPI Documentation**: https://fastapi.tiangolo.com/
+- **LangChain Documentation**: https://python.langchain.com/
+- **Sentence Transformers**: https://www.sbert.net/
 - **Pydantic Documentation**: https://docs.pydantic.dev/
 - **Pytest Documentation**: https://docs.pytest.org/
 - **Postman Documentation**: https://learning.postman.com/
@@ -613,6 +804,18 @@ cat .env
 python -c "from src.config import Config; print(Config().load_config())"
 ```
 
+#### **RAG Setup Issues**
+```bash
+# Check RAG folder exists and has documents
+ls -la $RAG_FOLDER
+
+# Test RAG functionality
+python examples/rag_usage.py
+
+# Verify document loading
+python -c "from src.rag import DocumentLoader; loader = DocumentLoader('$RAG_FOLDER'); print(loader.get_document_stats())"
+```
+
 #### **API Connection Issues**
 ```bash
 # Test local health check
@@ -630,4 +833,4 @@ curl http://localhost:8000/health
 
 ---
 
-**🎉 Happy Coding!** This LLM Chatbot with RAG provides a solid foundation for building sophisticated AI-powered applications with comprehensive testing, documentation, and best practices built-in.
+**🎉 Happy Coding!** This LLM Chatbot with RAG provides a comprehensive foundation for building sophisticated AI-powered applications with document processing, comprehensive testing, documentation, and best practices built-in.
