@@ -264,9 +264,9 @@ try:
         auth = client.authenticate()
         print(f"✅ Authenticated! Expires in {auth.expires_in}s")
         
-        # Use authenticated endpoints
-        health = client.health_check(authenticated=True)
-        print(f"External API status: {health.result}")
+        # Use authenticated endpoints for chat completion
+        response = client.chat_completion("Hello, how are you?")
+        print(f"AI Response: {response.get_first_choice_content()}")
         
 except APIAuthenticationError as e:
     print(f"❌ Authentication failed: {e}")
@@ -619,7 +619,7 @@ python -c "from src.config import Config; print(Config().load_config())"
 curl http://localhost:8000/health/simple
 
 # Test external API connectivity
-curl http://localhost:8000/health?authenticated=false
+curl http://localhost:8000/health
 ```
 
 ### **Getting Help**

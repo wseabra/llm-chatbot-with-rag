@@ -317,15 +317,13 @@ class APIClient:
             self._clear_auth()
             raise e
     
-    def health_check(self, authenticated: bool = False) -> HealthResponse:
+    def health_check(self) -> HealthResponse:
         """
         Perform health check on the API service.
         
         Makes a GET request to /ai-orchestration-api/v1/health and returns
-        the parsed response.
-        
-        Args:
-            authenticated: Whether to make an authenticated request
+        the parsed response. Health checks are always unauthenticated as they
+        are used for monitoring and service discovery purposes.
         
         Returns:
             HealthResponse object containing result and timestamp
@@ -335,15 +333,11 @@ class APIClient:
             APITimeoutError: For request timeouts
             APIHTTPError: For HTTP error status codes
             APIResponseError: For invalid response format
-            APIAuthenticationError: If authenticated=True and auth fails
         """
         endpoint = '/ai-orchestration-api/v1/health'
         
         try:
-            if authenticated:
-                response = self._make_authenticated_request('GET', endpoint)
-            else:
-                response = self._make_request('GET', endpoint)
+            response = self._make_request('GET', endpoint)
             
             # Parse JSON response
             try:
@@ -358,7 +352,7 @@ class APIClient:
             return HealthResponse.from_dict(response_data)
             
         except (APIConnectionError, APITimeoutError, APIHTTPError, 
-                APIResponseError, APIAuthenticationError):
+                APIResponseError):
             # Re-raise API exceptions as-is
             raise
         except Exception as e:

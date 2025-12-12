@@ -42,16 +42,17 @@ python src/main.py
 
 ## 📋 **Collection Structure**
 
-### **1. Health Checks** (4 requests)
+
+### **1. Health Checks** (3 requests)
 - ✅ **Root Endpoint** - Application information
 - ✅ **Simple Health Check** - Local service status
-- ✅ **External API Health (Unauthenticated)** - Basic external API check
-- ✅ **External API Health (Authenticated)** - Full external API check
+- ✅ **External API Health Check** - External API connectivity check
 
 ### **2. Chat Completion** (4 requests)
 - ✅ **Simple Chat Completion** - Basic single-turn conversation
 - ✅ **Simple Chat with Custom Parameters** - Custom temperature/tokens
 - ✅ **Advanced Chat Completion** - Multi-parameter control
+- ✅ **Multi-turn Conversation** - Context-aware conversation
 - ✅ **Multi-turn Conversation** - Context-aware conversation
 
 ### **3. Error Scenarios** (6 requests)

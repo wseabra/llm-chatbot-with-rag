@@ -104,7 +104,9 @@
 					"response": []
 				},
 				{
-					"name": "External API Health Check (Unauthenticated)",
+				},
+				{
+					"name": "External API Health Check",
 					"event": [
 						{
 							"listen": "test",
@@ -120,7 +122,6 @@
 									"        pm.expect(jsonData).to.have.property('status');",
 									"        pm.expect(jsonData).to.have.property('message');",
 									"        pm.expect(jsonData).to.have.property('external_api');",
-									"        pm.expect(jsonData.external_api.authenticated).to.be.false;",
 									"    } else {",
 									"        pm.expect(jsonData).to.have.property('detail');",
 									"        pm.expect(jsonData.detail).to.have.property('status');",
@@ -139,79 +140,17 @@
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "{{base_url}}/health?authenticated=false",
+							"raw": "{{base_url}}/health",
 							"host": [
 								"{{base_url}}"
 							],
 							"path": [
 								"health"
-							],
-							"query": [
-								{
-									"key": "authenticated",
-									"value": "false"
-								}
 							]
 						},
-						"description": "Check both local service and external API health without authentication."
+						"description": "Check both local service and external API health. Health checks are always unauthenticated for monitoring purposes."
 					},
 					"response": []
-				},
-				{
-					"name": "External API Health Check (Authenticated)",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"exec": [
-									"pm.test(\"Status code is 200, 401, 503, or 502\", function () {",
-									"    pm.expect([200, 401, 503, 502]).to.include(pm.response.code);",
-									"});",
-									"",
-									"pm.test(\"Response has correct structure\", function () {",
-									"    const jsonData = pm.response.json();",
-									"    if (pm.response.code === 200) {",
-									"        pm.expect(jsonData).to.have.property('status');",
-									"        pm.expect(jsonData).to.have.property('external_api');",
-									"        pm.expect(jsonData.external_api.authenticated).to.be.true;",
-									"    } else {",
-									"        pm.expect(jsonData).to.have.property('detail');",
-									"        pm.expect(jsonData.detail).to.have.property('status');",
-									"    }",
-									"});",
-									"",
-									"pm.test(\"Response time is less than 15000ms\", function () {",
-									"    pm.expect(pm.response.responseTime).to.be.below(15000);",
-									"});"
-								],
-								"type": "text/javascript"
-							}
-						}
-					],
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{base_url}}/health?authenticated=true",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"health"
-							],
-							"query": [
-								{
-									"key": "authenticated",
-									"value": "true"
-								}
-							]
-						},
-						"description": "Check both local service and external API health with authentication. May fail if credentials are not configured."
-					},
-					"response": []
-				}
-			],
-			"description": "Health check endpoints to verify service status and external API connectivity."
 		},
 		{
 			"name": "Chat Completion",

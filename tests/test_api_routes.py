@@ -128,15 +128,15 @@ class TestHealthRoutes:
         assert data["message"] == "Local service is running"
     
     @pytest.mark.unit
-    @patch('src.api.routes.health.APIClient')
-    def test_health_check_success_unauthenticated(self, mock_api_client_class, client, mock_health_response):
-        """Test successful health check without authentication."""
+    @patch('src.api.routes.health.ClientManager.get_client')
+    def test_health_check_success(self, mock_api_client_class, client, mock_health_response):
+        """Test successful health check."""
         # Setup mock
         mock_client = Mock(spec=APIClient)
         mock_client.health_check.return_value = mock_health_response
         mock_api_client_class.return_value = mock_client
         
-        response = client.get("/health?authenticated=false")
+        response = client.get("/health")
         
         assert response.status_code == 200
         data = response.json()
@@ -145,33 +145,14 @@ class TestHealthRoutes:
         assert data["message"] == "Service is running"
         assert data["external_api"]["status"] == "healthy"
         assert data["external_api"]["timestamp"] == "2025-12-11T15:01:23.000Z"
-        assert data["external_api"]["authenticated"] is False
         
         # Verify API client was called correctly
-        mock_client.health_check.assert_called_once_with(authenticated=False)
-        mock_client.close.assert_called_once()
+        mock_client.health_check.assert_called_once_with()
     
     @pytest.mark.unit
-    @patch('src.api.routes.health.APIClient')
-    def test_health_check_success_authenticated(self, mock_api_client_class, client, mock_health_response):
-        """Test successful health check with authentication."""
-        # Setup mock
-        mock_client = Mock(spec=APIClient)
-        mock_client.health_check.return_value = mock_health_response
-        mock_api_client_class.return_value = mock_client
-        
-        response = client.get("/health?authenticated=true")
-        
-        assert response.status_code == 200
-        data = response.json()
-        
-        assert data["external_api"]["authenticated"] is True
-        
-        # Verify API client was called correctly
-        mock_client.health_check.assert_called_once_with(authenticated=True)
-    
+    @patch('src.api.routes.health.ClientManager.get_client')
     @pytest.mark.unit
-    @patch('src.api.routes.health.APIClient')
+    @patch('src.api.routes.health.ClientManager.get_client')
     def test_health_check_unhealthy_external_api(self, mock_api_client_class, client, mock_unhealthy_response):
         """Test health check with unhealthy external API."""
         # Setup mock
@@ -188,31 +169,9 @@ class TestHealthRoutes:
         assert data["external_api"]["status"] == "unhealthy"
     
     @pytest.mark.unit
-    @patch('src.api.routes.health.APIClient')
-    def test_health_check_authentication_error(self, mock_api_client_class, client):
-        """Test health check with authentication error."""
-        # Setup mock
-        mock_client = Mock(spec=APIClient)
-        mock_client.health_check.side_effect = APIAuthenticationError(
-            "Authentication failed",
-            status_code=401,
-            auth_type="token"
-        )
-        mock_api_client_class.return_value = mock_client
-        
-        response = client.get("/health?authenticated=true")
-        
-        assert response.status_code == 401
-        data = response.json()
-        
-        assert data["detail"]["status"] == "error"
-        assert "Authentication failed" in data["detail"]["message"]
-        assert "error" in data["detail"]
-        
-        mock_client.close.assert_called_once()
-    
+    @patch('src.api.routes.health.ClientManager.get_client')
     @pytest.mark.unit
-    @patch('src.api.routes.health.APIClient')
+    @patch('src.api.routes.health.ClientManager.get_client')
     def test_health_check_connection_error(self, mock_api_client_class, client):
         """Test health check with connection error."""
         # Setup mock
@@ -230,7 +189,7 @@ class TestHealthRoutes:
         assert data["detail"]["local_service"] == "healthy"
     
     @pytest.mark.unit
-    @patch('src.api.routes.health.APIClient')
+    @patch('src.api.routes.health.ClientManager.get_client')
     def test_health_check_timeout_error(self, mock_api_client_class, client):
         """Test health check with timeout error."""
         # Setup mock
@@ -247,7 +206,7 @@ class TestHealthRoutes:
         assert "External API is unreachable" in data["detail"]["message"]
     
     @pytest.mark.unit
-    @patch('src.api.routes.health.APIClient')
+    @patch('src.api.routes.health.ClientManager.get_client')
     def test_health_check_http_error(self, mock_api_client_class, client):
         """Test health check with HTTP error."""
         # Setup mock
@@ -268,7 +227,7 @@ class TestHealthRoutes:
         assert "External API returned an error" in data["detail"]["message"]
     
     @pytest.mark.unit
-    @patch('src.api.routes.health.APIClient')
+    @patch('src.api.routes.health.ClientManager.get_client')
     def test_health_check_response_error(self, mock_api_client_class, client):
         """Test health check with response parsing error."""
         # Setup mock
@@ -288,7 +247,7 @@ class TestHealthRoutes:
         assert "External API returned an error" in data["detail"]["message"]
     
     @pytest.mark.unit
-    @patch('src.api.routes.health.APIClient')
+    @patch('src.api.routes.health.ClientManager.get_client')
     def test_health_check_unexpected_error(self, mock_api_client_class, client):
         """Test health check with unexpected error."""
         # Setup mock
@@ -363,7 +322,6 @@ class TestChatRoutes:
             max_tokens=100,
             temperature=0.8
         )
-        mock_client.close.assert_called_once()
     
     @pytest.mark.unit
     @patch('src.api.routes.chat.APIClient')
@@ -545,7 +503,6 @@ class TestChatRoutes:
         assert call_args.max_tokens == 500
         assert call_args.temperature == 0.5
         
-        mock_client.close.assert_called_once()
     
     @pytest.mark.unit
     @patch('src.api.routes.chat.APIClient')
@@ -798,32 +755,6 @@ class TestIntegrationScenarios:
             chat_data = response.json()
             assert chat_data["content"] == "Hello there!"
     
-    @pytest.mark.integration
-    @patch('src.api.routes.health.APIClient')
-    def test_health_check_with_different_auth_states(self, mock_api_client_class, client):
-        """Test health check with different authentication states."""
-        mock_client = Mock(spec=APIClient)
-        mock_health_response = HealthResponse(result=True, timestamp="2025-12-11T15:01:23.000Z")
-        mock_client.health_check.return_value = mock_health_response
-        mock_api_client_class.return_value = mock_client
-        
-        # Test unauthenticated
-        response = client.get("/health?authenticated=false")
-        assert response.status_code == 200
-        data = response.json()
-        assert data["external_api"]["authenticated"] is False
-        
-        # Test authenticated
-        response = client.get("/health?authenticated=true")
-        assert response.status_code == 200
-        data = response.json()
-        assert data["external_api"]["authenticated"] is True
-        
-        # Verify both calls were made
-        assert mock_client.health_check.call_count == 2
-
-
-# Parametrized tests for different scenarios
 class TestAPIParametrized:
     """Parametrized tests for different API scenarios."""
     

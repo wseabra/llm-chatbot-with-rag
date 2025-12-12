@@ -12,11 +12,11 @@ Example usage:
     auth = client.authenticate()
     print(f"Token expires in {auth.expires_in} seconds")
     
-    # Check health with authentication
-    health = client.health_check(authenticated=True)
+    # Check health (always unauthenticated for monitoring purposes)
+    health = client.health_check()
     print(f"API Health: {health.result} at {health.timestamp}")
     
-    # Simple chat completion
+    # Simple chat completion (requires authentication)
     response = client.chat_completion("What is the capital of France?")
     print(f"AI Response: {response.get_first_choice_content()}")
     
@@ -41,7 +41,7 @@ Example usage:
     # Using context manager for automatic cleanup
     with APIClient() as client:
         auth = client.authenticate()
-        health = client.health_check(authenticated=True)
+        health = client.health_check()
         print(f"Service is {'healthy' if health.result else 'unhealthy'}")
         
         response = client.chat_completion("Hello, how are you?")

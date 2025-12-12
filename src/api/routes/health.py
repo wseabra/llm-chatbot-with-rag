@@ -6,12 +6,11 @@ that use the flowApi client to check external service health.
 """
 
 from fastapi import APIRouter, HTTPException, Depends
-from typing import Optional
 
 from ...flowApi.client import APIClient
 from ...flowApi.exceptions import (
     APIConnectionError, APITimeoutError, APIHTTPError, 
-    APIResponseError, APIAuthenticationError
+    APIResponseError
 )
 from ..clientManager import ClientManager
 
@@ -29,15 +28,14 @@ async def get_api_client() -> APIClient:
 
 
 @router.get("/health")
-async def health_check(
-    authenticated: bool = False,
-    client: APIClient = Depends(get_api_client)
-):
+async def health_check(client: APIClient = Depends(get_api_client)):
     """
     Health check endpoint that checks both local service and external API health.
     
+    Health checks should not require authentication as they are used for monitoring
+    and service discovery purposes.
+    
     Args:
-        authenticated: Whether to perform authenticated health check
         client: APIClient dependency
         
     Returns:
@@ -47,28 +45,18 @@ async def health_check(
         HTTPException: If health check fails
     """
     try:
-        # Check external API health
-        health_response = client.health_check(authenticated=authenticated)
+        # Check external API health (always unauthenticated)
+        health_response = client.health_check()
         
         return {
             "status": "healthy",
             "message": "Service is running",
             "external_api": {
                 "status": "healthy" if health_response.result else "unhealthy",
-                "timestamp": health_response.timestamp,
-                "authenticated": authenticated
+                "timestamp": health_response.timestamp
             }
         }
         
-    except APIAuthenticationError as e:
-        raise HTTPException(
-            status_code=401,
-            detail={
-                "status": "error",
-                "message": "Authentication failed for external API health check",
-                "error": str(e)
-            }
-        )
     except (APIConnectionError, APITimeoutError) as e:
         raise HTTPException(
             status_code=503,

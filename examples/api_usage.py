@@ -67,11 +67,10 @@ def main():
             # Get auth info
             auth_info = client.get_auth_info()
             if auth_info:
-                print(f"   Auth info: {auth_info}")
             
-            # Make authenticated health check
-            health = client.health_check(authenticated=True)
-            print(f"   Authenticated health check: {health.result}")
+            # Test basic health check (always unauthenticated)
+            health = client.health_check()
+            print(f"   Health check result: {health.result}")
             
     except APIConfigurationError as e:
         print(f"   Configuration Error: {e}")

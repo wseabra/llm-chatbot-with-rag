@@ -568,31 +568,6 @@ class TestAPIClientAuthentication:
     @pytest.mark.unit
     @pytest.mark.api
     @patch('src.flowApi.client.requests.Session.request')
-    def test_health_check_authenticated(self, mock_request, mock_config):
-        """Test health_check with authentication."""
-        # Mock auth response
-        auth_response = Mock()
-        auth_response.status_code = 200
-        auth_response.json.return_value = {
-            'access_token': 'token123',
-            'expires_in': 3600
-        }
-        
-        # Mock health response
-        health_response = Mock()
-        health_response.status_code = 200
-        health_response.json.return_value = {
-            'result': True,
-            'timestamp': '2025-12-11T15:01:23.000Z'
-        }
-        
-        mock_request.side_effect = [auth_response, health_response]
-        
-        client = APIClient(config=mock_config)
-        health = client.health_check(authenticated=True)
-        
-        assert health.result is True
-        assert mock_request.call_count == 2  # Auth + health check
 
 
 class TestAPIClientAuthenticationIntegration:
