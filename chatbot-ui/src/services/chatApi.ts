@@ -3,7 +3,7 @@
  * Filters out RAG metadata to keep it transparent to the user
  */
 
-import { ChatMessage, ChatRequest, ChatResponse, ChatApiResponse, ChatError } from '../types/chat'
+import { ChatMessage, ChatRequest, ChatResponse, ChatApiResponse } from '../types/chat'
 
 const API_BASE_URL = 'http://localhost:8000'
 
@@ -14,10 +14,6 @@ class ChatApiService {
     this.baseUrl = baseUrl
   }
 
-  /**
-   * Send a chat request to the advanced chat endpoint
-   * Filters out RAG metadata from the response
-   */
   async sendMessage(messages: ChatMessage[]): Promise<ChatResponse> {
     try {
       const request: ChatRequest = {
@@ -47,17 +43,13 @@ class ChatApiService {
 
       const apiResponse: ChatApiResponse = await response.json()
       
-      // Filter out RAG metadata - user doesn't need to know about it
-      const filteredResponse: ChatResponse = {
+      return {
         id: apiResponse.id,
         model: apiResponse.model,
         choices: apiResponse.choices,
         usage: apiResponse.usage,
         created: apiResponse.created
-        // rag_metadata is intentionally omitted
       }
-
-      return filteredResponse
     } catch (error) {
       if (error instanceof Error) {
         throw new Error(`Failed to send message: ${error.message}`)
@@ -66,9 +58,51 @@ class ChatApiService {
     }
   }
 
-  /**
-   * Check if the API is available
-   */
+  async sendMessageWithUploads(messages: ChatMessage[], files: File[]): Promise<ChatResponse> {
+    try {
+      const form = new FormData()
+      const minimalMessages = messages.map(m => ({ role: m.role, content: m.content }))
+      form.append('messages', JSON.stringify(minimalMessages))
+      form.append('max_tokens', String(4096))
+      form.append('temperature', String(0.7))
+      form.append('stream', String(false))
+      form.append('allowed_models', 'gpt-4o-mini')
+
+      for (const file of files) {
+        form.append('files', file, file.name)
+      }
+
+      const response = await fetch(`${this.baseUrl}/chat/uploaded`, {
+        method: 'POST',
+        body: form,
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(
+          errorData.detail?.message ||
+          errorData.message ||
+          `HTTP ${response.status}: ${response.statusText}`
+        )
+      }
+
+      const apiResponse: ChatApiResponse = await response.json()
+
+      return {
+        id: apiResponse.id,
+        model: apiResponse.model,
+        choices: apiResponse.choices,
+        usage: apiResponse.usage,
+        created: apiResponse.created,
+      }
+    } catch (error) {
+      if (error instanceof Error) {
+        throw new Error(`Failed to send message: ${error.message}`)
+      }
+      throw new Error('Failed to send message: Unknown error')
+    }
+  }
+
   async checkHealth(): Promise<boolean> {
     try {
       const response = await fetch(`${this.baseUrl}/health`)
@@ -79,6 +113,5 @@ class ChatApiService {
   }
 }
 
-// Export singleton instance
 export const chatApi = new ChatApiService()
 export default chatApi

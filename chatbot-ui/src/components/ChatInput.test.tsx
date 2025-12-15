@@ -32,7 +32,7 @@ describe('ChatInput', () => {
     await user.type(input, 'Hello world')
     await user.click(sendButton)
     
-    expect(mockOnSendMessage).toHaveBeenCalledWith('Hello world')
+    expect(mockOnSendMessage).toHaveBeenCalledWith('Hello world', [])
   })
 
   it('calls onSendMessage when Enter key is pressed', async () => {
@@ -44,7 +44,7 @@ describe('ChatInput', () => {
     await user.type(input, 'Hello world')
     await user.keyboard('{Enter}')
     
-    expect(mockOnSendMessage).toHaveBeenCalledWith('Hello world')
+    expect(mockOnSendMessage).toHaveBeenCalledWith('Hello world', [])
   })
 
   it('does not send message when Shift+Enter is pressed', async () => {
@@ -81,7 +81,7 @@ describe('ChatInput', () => {
     await user.type(input, '  Hello world  ')
     await user.click(sendButton)
     
-    expect(mockOnSendMessage).toHaveBeenCalledWith('Hello world')
+    expect(mockOnSendMessage).toHaveBeenCalledWith('Hello world', [])
   })
 
   it('does not send empty or whitespace-only messages', async () => {

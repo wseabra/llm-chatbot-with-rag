@@ -1,56 +1,88 @@
-import React, { useState } from 'react'
+import React, { useState, useRef, ChangeEvent } from 'react'
 import SimpleMarkdownRenderer from './components/SimpleMarkdownRenderer'
 import './App.css'
 
+type UiMessage = { role: string; content: string; attachments?: string[] }
+
 function App() {
-  const [messages, setMessages] = useState<Array<{role: string, content: string}>>([])
+  const [messages, setMessages] = useState<Array<UiMessage>>([])
   const [inputValue, setInputValue] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [files, setFiles] = useState<File[]>([])
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const selected = Array.from(e.target.files || [])
+    setFiles(prev => [...prev, ...selected])
+    e.target.value = ''
+  }
+
+  const clearFiles = () => setFiles([])
 
   const handleSend = async () => {
-    if (!inputValue.trim()) return
-    
-    const userMessage = { role: 'user', content: inputValue.trim() }
+    const trimmed = inputValue.trim()
+    if (!trimmed) return
+
+    const userMessage: UiMessage = { role: 'user', content: trimmed }
     setMessages(prev => [...prev, userMessage])
     setInputValue('')
     setIsLoading(true)
+    const sentFiles = [...files]
 
     try {
-      const response = await fetch('http://localhost:8000/chat/advanced', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          messages: [...messages, userMessage],
-          max_tokens: 4096,
-          temperature: 0.7,
-          stream: false,
-          allowed_models: ['gpt-4o-mini']
+      let response: Response
+
+      if (sentFiles.length > 0) {
+        const form = new FormData()
+        const minimalMessages = [...messages, userMessage].map(m => ({ role: m.role, content: m.content }))
+        form.append('messages', JSON.stringify(minimalMessages))
+        form.append('max_tokens', String(4096))
+        form.append('temperature', String(0.7))
+        form.append('stream', String(false))
+        form.append('allowed_models', 'gpt-4o-mini')
+        for (const file of sentFiles) {
+          form.append('files', file, file.name)
+        }
+
+        response = await fetch('http://localhost:8000/chat/uploaded', {
+          method: 'POST',
+          body: form
         })
-      })
+      } else {
+        response = await fetch('http://localhost:8000/chat/advanced', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            messages: [...messages, userMessage],
+            max_tokens: 4096,
+            temperature: 0.7,
+            stream: false,
+            allowed_models: ['gpt-4o-mini']
+          })
+        })
+      }
 
       if (response.ok) {
         const data = await response.json()
-        console.log('API Response:', data) // Debug log
-        
         if (data.choices && data.choices[0] && data.choices[0].message) {
-          const assistantContent = data.choices[0].message.content
-          console.log('Assistant content:', assistantContent, 'Type:', typeof assistantContent) // Debug log
-          
-          setMessages(prev => [...prev, {
+          const assistantMessage: UiMessage = {
             role: 'assistant',
-            content: assistantContent
-          }])
-        } else {
-          console.error('Unexpected API response structure:', data)
+            content: data.choices[0].message.content,
+          }
+          if (sentFiles.length > 0) {
+            assistantMessage.attachments = sentFiles.map(f => f.name)
+          }
+          setMessages(prev => [...prev, assistantMessage])
         }
+        setFiles([])
       } else {
-        console.error('API request failed:', response.status, response.statusText)
         const errorText = await response.text()
-        console.error('Error response:', errorText)
+        setMessages(prev => [...prev, {
+          role: 'assistant',
+          content: `Error: HTTP ${response.status} ${response.statusText} - ${errorText}`
+        }])
       }
     } catch (error) {
-      console.error('Error:', error)
-      // Add error message to chat
       setMessages(prev => [...prev, {
         role: 'assistant',
         content: `Error: ${error instanceof Error ? error.message : 'Unknown error occurred'}`
@@ -67,14 +99,10 @@ function App() {
     }
   }
 
-  const renderMessageContent = (message: {role: string, content: string}) => {
-    console.log('Rendering message:', message.role, 'Content:', message.content, 'Type:', typeof message.content) // Debug log
-    
+  const renderMessageContent = (message: UiMessage) => {
     if (message.role === 'assistant') {
-      // Use simple markdown renderer for assistant messages
       return <SimpleMarkdownRenderer content={message.content} />
     } else {
-      // Plain text for user messages
       return message.content
     }
   }
@@ -85,7 +113,7 @@ function App() {
         <div className="chat-header">
           <h1>AI Assistant</h1>
         </div>
-        
+
         <div className="chat-content">
           <div className="chat-history">
             {messages.length === 0 ? (
@@ -101,6 +129,13 @@ function App() {
                         {renderMessageContent(message)}
                       </div>
                     </div>
+                    {message.attachments && message.attachments.length > 0 && (
+                      <ul className="message-attachments">
+                        {message.attachments.map((name, i) => (
+                          <li key={`${name}-${i}`}>{name}</li>
+                        ))}
+                      </ul>
+                    )}
                   </div>
                 ))}
                 {isLoading && (
@@ -120,26 +155,65 @@ function App() {
             )}
           </div>
         </div>
-        
+
         <div className="chat-footer">
           <div className="chat-input">
             <div className="input-container">
-              <textarea
-                value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
-                onKeyPress={handleKeyPress}
-                placeholder="Type your message..."
-                className="message-input"
-                disabled={isLoading}
-                rows={1}
-              />
-              <button
-                onClick={handleSend}
-                disabled={isLoading || !inputValue.trim()}
-                className="send-button"
-              >
-                Send
-              </button>
+              <div className="upload-area" data-testid="upload-area">
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="upload-button"
+                  data-testid="upload-button"
+                >
+                  <span className="upload-icon" aria-hidden>📎</span>
+                  Attach files
+                </button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  onChange={handleFileChange}
+                  style={{ display: 'none' }}
+                  accept=".txt,.md,.pdf"
+                />
+                {files.length > 0 && (
+                  <div className="uploaded-files-inline">
+                    <span className="attached-label">Attached:</span>
+                    {files.map((f, i) => (
+                      <span key={`${f.name}-${i}`} className="file-chip">
+                        {f.name}
+                      </span>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={clearFiles}
+                      className="clear-files"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <div className="input-row">
+                <textarea
+                  value={inputValue}
+                  onChange={(e) => setInputValue(e.target.value)}
+                  onKeyPress={handleKeyPress}
+                  placeholder="Type your message..."
+                  className="message-input"
+                  disabled={isLoading}
+                  rows={1}
+                />
+                <button
+                  onClick={handleSend}
+                  disabled={isLoading || !inputValue.trim()}
+                  className="send-button"
+                >
+                  Send
+                </button>
+              </div>
             </div>
           </div>
         </div>

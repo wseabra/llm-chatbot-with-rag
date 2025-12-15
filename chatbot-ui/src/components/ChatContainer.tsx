@@ -1,8 +1,3 @@
-/**
- * Main chat container component that manages conversation state
- * Integrates ChatHistory and ChatInput components
- */
-
 import React, { useState, useCallback } from 'react'
 import ChatHistory from './ChatHistory'
 import ChatInput from './ChatInput'
@@ -37,29 +32,24 @@ const ChatContainer: React.FC = () => {
     }))
   }, [])
 
-  const handleSendMessage = useCallback(async (content: string) => {
+  const handleSendMessage = useCallback(async (content: string, files?: File[]) => {
     try {
-      // Clear any previous errors
       setError(null)
       
-      // Add user message
       const userMessage: ChatMessage = {
         role: 'user',
         content,
         timestamp: new Date()
       }
       addMessage(userMessage)
-      
-      // Set loading state
       setLoading(true)
       
-      // Prepare messages for API (include conversation history)
       const messagesToSend = [...chatState.messages, userMessage]
       
-      // Send to API
-      const response = await chatApi.sendMessage(messagesToSend)
+      const response = files && files.length > 0
+        ? await chatApi.sendMessageWithUploads(messagesToSend, files)
+        : await chatApi.sendMessage(messagesToSend)
       
-      // Add assistant response
       if (response.choices && response.choices.length > 0) {
         const assistantMessage: ChatMessage = {
           role: 'assistant',
@@ -68,7 +58,6 @@ const ChatContainer: React.FC = () => {
         }
         addMessage(assistantMessage)
       }
-      
     } catch (error) {
       const chatError: ChatError = {
         message: error instanceof Error ? error.message : 'An unexpected error occurred',

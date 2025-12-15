@@ -12,6 +12,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .routes import health, chat, root
+from .routes import upload as upload_routes
 from .rag_dependency import set_rag_manager, cleanup_rag_manager, get_rag_status
 from ..config.config import Config
 from ..rag.rag_manager import RAGManager, RAGConfig
@@ -143,6 +144,7 @@ def create_app() -> FastAPI:
     app.include_router(root.router)
     app.include_router(health.router)
     app.include_router(chat.router)
+    app.include_router(upload_routes.router)
     
     @app.get("/rag/status", tags=["rag"])
     async def rag_status():
