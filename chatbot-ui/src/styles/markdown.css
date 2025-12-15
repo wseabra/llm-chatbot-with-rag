@@ -1,0 +1,387 @@
+/* Markdown Renderer Styles - No External Dependencies */
+
+.markdown-renderer {
+  line-height: 1.6;
+  color: inherit;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+/* Headings */
+.markdown-h1,
+.markdown-h2,
+.markdown-h3,
+.markdown-h4,
+.markdown-h5,
+.markdown-h6 {
+  margin: 1em 0 0.5em 0;
+  font-weight: 600;
+  line-height: 1.3;
+  color: inherit;
+}
+
+.markdown-h1 {
+  font-size: 1.5em;
+  border-bottom: 2px solid var(--border-color);
+  padding-bottom: 0.3em;
+}
+
+.markdown-h2 {
+  font-size: 1.3em;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 0.2em;
+}
+
+.markdown-h3 {
+  font-size: 1.2em;
+}
+
+.markdown-h4 {
+  font-size: 1.1em;
+}
+
+.markdown-h5,
+.markdown-h6 {
+  font-size: 1em;
+}
+
+/* First heading has no top margin */
+.markdown-renderer > .markdown-h1:first-child,
+.markdown-renderer > .markdown-h2:first-child,
+.markdown-renderer > .markdown-h3:first-child,
+.markdown-renderer > .markdown-h4:first-child,
+.markdown-renderer > .markdown-h5:first-child,
+.markdown-renderer > .markdown-h6:first-child {
+  margin-top: 0;
+}
+
+/* Paragraphs */
+.markdown-p {
+  margin: 0.8em 0;
+  line-height: 1.6;
+}
+
+.markdown-renderer > .markdown-p:first-child {
+  margin-top: 0;
+}
+
+.markdown-renderer > .markdown-p:last-child {
+  margin-bottom: 0;
+}
+
+/* Lists */
+.markdown-ul,
+.markdown-ol {
+  margin: 0.8em 0;
+  padding-left: 1.5em;
+}
+
+.markdown-li {
+  margin: 0.3em 0;
+  line-height: 1.5;
+}
+
+.markdown-ul .markdown-ul,
+.markdown-ol .markdown-ol,
+.markdown-ul .markdown-ol,
+.markdown-ol .markdown-ul {
+  margin: 0.3em 0;
+}
+
+/* Code */
+.inline-code {
+  background-color: var(--code-bg, rgba(175, 184, 193, 0.2));
+  color: var(--code-text, var(--text-primary));
+  padding: 0.2em 0.4em;
+  border-radius: 4px;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', 'Courier New', monospace;
+  font-size: 0.9em;
+  border: 1px solid var(--code-border, rgba(175, 184, 193, 0.3));
+}
+
+.code-block {
+  margin: 1em 0;
+  border-radius: 8px;
+  font-size: 0.9em;
+  overflow-x: auto;
+  max-width: 100%;
+  background-color: var(--code-block-bg, #f6f8fa);
+  border: 1px solid var(--code-border, rgba(175, 184, 193, 0.3));
+  position: relative;
+}
+
+.code-block::before {
+  content: attr(data-language);
+  position: absolute;
+  top: 0.5em;
+  right: 0.5em;
+  font-size: 0.75em;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  font-weight: 600;
+  background-color: var(--code-lang-bg, rgba(175, 184, 193, 0.2));
+  padding: 0.2em 0.5em;
+  border-radius: 3px;
+  font-family: inherit;
+}
+
+.code-block[data-language="text"]::before,
+.code-block[data-language=""]::before {
+  display: none;
+}
+
+.code-block code {
+  display: block;
+  padding: 1em;
+  margin: 0;
+  background: transparent;
+  color: var(--code-text, var(--text-primary));
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', 'Courier New', monospace;
+  line-height: 1.4;
+  white-space: pre;
+  overflow-x: auto;
+}
+
+.code-block pre {
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  border: none;
+  overflow: visible;
+}
+
+/* Links */
+.markdown-link {
+  color: var(--primary-color);
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  transition: text-decoration-color 0.2s ease;
+}
+
+.markdown-link:hover {
+  text-decoration-color: var(--primary-color);
+}
+
+/* Blockquotes */
+.markdown-blockquote {
+  margin: 1em 0;
+  padding: 0.5em 1em;
+  border-left: 4px solid var(--primary-color);
+  background-color: var(--blockquote-bg, rgba(175, 184, 193, 0.1));
+  border-radius: 0 4px 4px 0;
+  font-style: italic;
+}
+
+.markdown-blockquote .markdown-p {
+  margin: 0.5em 0;
+}
+
+.markdown-blockquote .markdown-p:first-child {
+  margin-top: 0;
+}
+
+.markdown-blockquote .markdown-p:last-child {
+  margin-bottom: 0;
+}
+
+/* Tables */
+.table-wrapper {
+  overflow-x: auto;
+  margin: 1em 0;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+}
+
+.markdown-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9em;
+}
+
+.markdown-th,
+.markdown-td {
+  padding: 0.6em 1em;
+  text-align: left;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.markdown-th {
+  background-color: var(--table-header-bg, var(--bg-secondary));
+  font-weight: 600;
+  border-bottom: 2px solid var(--border-color);
+}
+
+.markdown-td {
+  background-color: var(--table-cell-bg, transparent);
+}
+
+.markdown-table tr:nth-child(even) .markdown-td {
+  background-color: var(--table-stripe-bg, rgba(175, 184, 193, 0.05));
+}
+
+.markdown-table tr:hover .markdown-td {
+  background-color: var(--table-hover-bg, rgba(175, 184, 193, 0.1));
+}
+
+/* Text formatting */
+.markdown-strong {
+  font-weight: 600;
+}
+
+.markdown-em {
+  font-style: italic;
+}
+
+/* Horizontal rules */
+.markdown-hr {
+  margin: 1.5em 0;
+  border: none;
+  border-top: 2px solid var(--border-color);
+  opacity: 0.5;
+}
+
+/* Language-specific syntax highlighting (basic) */
+.code-block[data-language="javascript"] code,
+.code-block[data-language="js"] code,
+.code-block[data-language="typescript"] code,
+.code-block[data-language="ts"] code {
+  color: var(--js-text, #24292f);
+}
+
+.code-block[data-language="python"] code,
+.code-block[data-language="py"] code {
+  color: var(--python-text, #24292f);
+}
+
+.code-block[data-language="html"] code {
+  color: var(--html-text, #24292f);
+}
+
+.code-block[data-language="css"] code {
+  color: var(--css-text, #24292f);
+}
+
+.code-block[data-language="json"] code {
+  color: var(--json-text, #24292f);
+}
+
+.code-block[data-language="bash"] code,
+.code-block[data-language="shell"] code,
+.code-block[data-language="sh"] code {
+  color: var(--bash-text, #24292f);
+}
+
+/* Dark theme adjustments */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --code-bg: rgba(110, 118, 129, 0.4);
+    --code-text: #e6edf3;
+    --code-border: rgba(110, 118, 129, 0.6);
+    --code-block-bg: #161b22;
+    --code-lang-bg: rgba(110, 118, 129, 0.3);
+    --blockquote-bg: rgba(110, 118, 129, 0.2);
+    --table-header-bg: rgba(110, 118, 129, 0.3);
+    --table-cell-bg: transparent;
+    --table-stripe-bg: rgba(110, 118, 129, 0.1);
+    --table-hover-bg: rgba(110, 118, 129, 0.2);
+    
+    /* Language-specific colors for dark theme */
+    --js-text: #e6edf3;
+    --python-text: #e6edf3;
+    --html-text: #e6edf3;
+    --css-text: #e6edf3;
+    --json-text: #e6edf3;
+    --bash-text: #e6edf3;
+  }
+}
+
+/* Light theme adjustments */
+@media (prefers-color-scheme: light) {
+  :root {
+    --code-bg: rgba(175, 184, 193, 0.2);
+    --code-text: #24292f;
+    --code-border: rgba(175, 184, 193, 0.3);
+    --code-block-bg: #f6f8fa;
+    --code-lang-bg: rgba(175, 184, 193, 0.2);
+    --blockquote-bg: rgba(175, 184, 193, 0.1);
+    --table-header-bg: #f6f8fa;
+    --table-cell-bg: transparent;
+    --table-stripe-bg: rgba(175, 184, 193, 0.05);
+    --table-hover-bg: rgba(175, 184, 193, 0.1);
+    
+    /* Language-specific colors for light theme */
+    --js-text: #24292f;
+    --python-text: #24292f;
+    --html-text: #24292f;
+    --css-text: #24292f;
+    --json-text: #24292f;
+    --bash-text: #24292f;
+  }
+}
+
+/* Responsive design for mobile */
+@media (max-width: 768px) {
+  .code-block {
+    font-size: 0.8em;
+  }
+  
+  .code-block::before {
+    font-size: 0.7em;
+    top: 0.3em;
+    right: 0.3em;
+  }
+  
+  .table-wrapper {
+    font-size: 0.8em;
+  }
+  
+  .markdown-th,
+  .markdown-td {
+    padding: 0.4em 0.6em;
+  }
+  
+  .markdown-h1 {
+    font-size: 1.3em;
+  }
+  
+  .markdown-h2 {
+    font-size: 1.2em;
+  }
+  
+  .markdown-h3 {
+    font-size: 1.1em;
+  }
+}
+
+/* Ensure proper spacing in chat context */
+.chat-message .markdown-renderer {
+  width: 100%;
+}
+
+.chat-message .markdown-renderer > *:first-child {
+  margin-top: 0;
+}
+
+.chat-message .markdown-renderer > *:last-child {
+  margin-bottom: 0;
+}
+
+/* Copy button for code blocks (optional enhancement) */
+.code-block {
+  position: relative;
+}
+
+.code-block:hover::after {
+  content: "📋";
+  position: absolute;
+  top: 0.5em;
+  right: 3em;
+  cursor: pointer;
+  opacity: 0.7;
+  transition: opacity 0.2s ease;
+  font-size: 0.9em;
+}
+
+.code-block:hover::after:hover {
+  opacity: 1;
+}

@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import SimpleMarkdownRenderer from './components/SimpleMarkdownRenderer'
 import './App.css'
 
 function App() {
@@ -29,15 +30,31 @@ function App() {
 
       if (response.ok) {
         const data = await response.json()
-        if (data.choices && data.choices[0]) {
+        console.log('API Response:', data) // Debug log
+        
+        if (data.choices && data.choices[0] && data.choices[0].message) {
+          const assistantContent = data.choices[0].message.content
+          console.log('Assistant content:', assistantContent, 'Type:', typeof assistantContent) // Debug log
+          
           setMessages(prev => [...prev, {
             role: 'assistant',
-            content: data.choices[0].message.content
+            content: assistantContent
           }])
+        } else {
+          console.error('Unexpected API response structure:', data)
         }
+      } else {
+        console.error('API request failed:', response.status, response.statusText)
+        const errorText = await response.text()
+        console.error('Error response:', errorText)
       }
     } catch (error) {
       console.error('Error:', error)
+      // Add error message to chat
+      setMessages(prev => [...prev, {
+        role: 'assistant',
+        content: `Error: ${error instanceof Error ? error.message : 'Unknown error occurred'}`
+      }])
     } finally {
       setIsLoading(false)
     }
@@ -47,6 +64,18 @@ function App() {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
       handleSend()
+    }
+  }
+
+  const renderMessageContent = (message: {role: string, content: string}) => {
+    console.log('Rendering message:', message.role, 'Content:', message.content, 'Type:', typeof message.content) // Debug log
+    
+    if (message.role === 'assistant') {
+      // Use simple markdown renderer for assistant messages
+      return <SimpleMarkdownRenderer content={message.content} />
+    } else {
+      // Plain text for user messages
+      return message.content
     }
   }
 
@@ -69,7 +98,7 @@ function App() {
                   <div key={index} className={`chat-message ${message.role}`}>
                     <div className="message-content">
                       <div className="message-text">
-                        {message.content}
+                        {renderMessageContent(message)}
                       </div>
                     </div>
                   </div>
