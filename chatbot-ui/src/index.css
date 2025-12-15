@@ -4,8 +4,39 @@
   font-weight: 400;
 
   color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+  
+  /* Light theme colors */
+  --bg-primary: #ffffff;
+  --bg-secondary: #f8f9fa;
+  --text-primary: #212529;
+  --text-secondary: #6c757d;
+  --text-tertiary: #adb5bd;
+  --border-color: #dee2e6;
+  --primary-color: #0d6efd;
+  --primary-color-hover: #0b5ed7;
+  
+  /* Message colors */
+  --user-message-bg: #0d6efd;
+  --user-message-text: #ffffff;
+  --assistant-message-bg: #f8f9fa;
+  --assistant-message-text: #212529;
+  
+  /* Input colors */
+  --input-bg: #ffffff;
+  --button-disabled: #adb5bd;
+  
+  /* Error colors */
+  --error-bg: #f8d7da;
+  --error-border: #f5c2c7;
+  --error-text: #721c24;
+  --error-button-bg: #ffffff;
+  --error-button-text: #721c24;
+  --error-button-hover: #f8f9fa;
+  
+  /* Scrollbar colors */
+  --scrollbar-track: #f1f3f4;
+  --scrollbar-thumb: #c1c1c1;
+  --scrollbar-thumb-hover: #a8a8a8;
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -13,56 +44,92 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
+/* Dark theme */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg-primary: #1a1a1a;
+    --bg-secondary: #2d2d2d;
+    --text-primary: #ffffff;
+    --text-secondary: #b3b3b3;
+    --text-tertiary: #808080;
+    --border-color: #404040;
+    --primary-color: #4dabf7;
+    --primary-color-hover: #339af0;
+    
+    /* Message colors */
+    --user-message-bg: #4dabf7;
+    --user-message-text: #ffffff;
+    --assistant-message-bg: #2d2d2d;
+    --assistant-message-text: #ffffff;
+    
+    /* Input colors */
+    --input-bg: #2d2d2d;
+    --button-disabled: #666666;
+    
+    /* Error colors */
+    --error-bg: #2d1b1b;
+    --error-border: #5c2e2e;
+    --error-text: #ff6b6b;
+    --error-button-bg: #2d2d2d;
+    --error-button-text: #ff6b6b;
+    --error-button-hover: #404040;
+    
+    /* Scrollbar colors */
+    --scrollbar-track: #2d2d2d;
+    --scrollbar-thumb: #555555;
+    --scrollbar-thumb-hover: #777777;
+  }
 }
-a:hover {
-  color: #535bf2;
+
+* {
+  box-sizing: border-box;
 }
 
 body {
   margin: 0;
-  display: flex;
-  place-items: center;
+  padding: 0;
   min-width: 320px;
   min-height: 100vh;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
 }
 
-h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
+#root {
+  height: 100vh;
+}
+
+/* Reset default styles */
+h1, h2, h3, h4, h5, h6 {
+  margin: 0;
+  font-weight: 600;
+}
+
+p {
+  margin: 0;
 }
 
 button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  background-color: #1a1a1a;
+  border: none;
+  background: none;
   cursor: pointer;
-  transition: border-color 0.25s;
-}
-button:hover {
-  border-color: #646cff;
-}
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
+  font-family: inherit;
 }
 
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
-  }
-  a:hover {
-    color: #747bff;
-  }
-  button {
-    background-color: #f9f9f9;
-  }
+textarea {
+  font-family: inherit;
+  border: none;
+  outline: none;
+}
+
+/* Focus styles for accessibility */
+button:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
+}
+
+/* Selection styles */
+::selection {
+  background-color: var(--primary-color);
+  color: white;
 }

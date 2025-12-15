@@ -1,75 +1,190 @@
-# React + TypeScript + Vite
+# Chatbot UI
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A modern React-based chat interface for the FastAPI RAG Application. This frontend provides a clean, intuitive chat experience that seamlessly integrates with the backend's RAG-enhanced AI assistant.
 
-Currently, two official plugins are available:
+## Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- **Clean Chat Interface**: Modern, responsive design with user and assistant message bubbles
+- **Real-time Conversations**: Multi-turn conversations with full context preservation
+- **Loading States**: Visual feedback during API calls with typing indicators
+- **Error Handling**: Graceful error handling with retry functionality
+- **Responsive Design**: Works seamlessly on desktop and mobile devices
+- **Dark/Light Theme**: Automatic theme switching based on system preferences
+- **Accessibility**: Full keyboard navigation and screen reader support
+- **RAG Transparency**: Users benefit from enhanced responses without seeing technical complexity
 
-## React Compiler
+## Technology Stack
 
-The React Compiler is enabled on this template. See [this documentation](https://react.dev/learn/react-compiler) for more information.
+- **React 19.2.0** with TypeScript
+- **Vite** for fast development and building
+- **Vitest** for unit and integration testing
+- **React Testing Library** for component testing
+- **CSS Variables** for theming and customization
 
-Note: This will impact Vite dev & build performances.
+## Getting Started
 
-## Expanding the ESLint configuration
+### Prerequisites
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+- Node.js 18+ 
+- npm, yarn, or pnpm
+- Backend API running on `http://localhost:8000`
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+### Installation
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+```bash
+# Install dependencies
+npm install
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+# Start development server
+npm run dev
+
+# Run tests
+npm run test
+
+# Run tests with UI
+npm run test:ui
+
+# Run tests with coverage
+npm run test:coverage
+
+# Build for production
+npm run build
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Project Structure
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
 ```
+src/
+├── components/           # React components
+│   ├── ChatContainer.tsx    # Main chat container
+│   ├── ChatHistory.tsx      # Message history display
+│   ├── ChatInput.tsx        # Input field and send button
+│   └── ChatMessage.tsx      # Individual message component
+├── services/            # API services
+│   └── chatApi.ts          # Chat API integration
+├── types/               # TypeScript type definitions
+│   └── chat.ts             # Chat-related types
+├── __mocks__/           # Test mocks and utilities
+│   └── chatApiMocks.ts     # Mock data for testing
+├── App.tsx              # Main application component
+├── App.css              # Application styles
+├── index.css            # Global styles and CSS variables
+└── setupTests.ts        # Test configuration
+```
+
+## API Integration
+
+The frontend integrates with the FastAPI backend using the `/chat/advanced` endpoint:
+
+- **Endpoint**: `POST http://localhost:8000/chat/advanced`
+- **Features**: Multi-turn conversations, RAG enhancement (transparent to user)
+- **Error Handling**: Comprehensive error handling for all API failure scenarios
+
+### RAG Transparency
+
+The application receives RAG-enhanced responses from the backend but keeps this functionality completely transparent to the user:
+
+- Users see natural, enhanced responses without knowing about document retrieval
+- No RAG metadata is displayed in the UI
+- The experience feels like chatting with a knowledgeable assistant
+
+## Component Architecture
+
+### ChatContainer
+- Main orchestrator component
+- Manages conversation state and API calls
+- Handles error states and loading indicators
+
+### ChatHistory
+- Displays conversation messages
+- Auto-scrolls to latest messages
+- Shows loading indicators during API calls
+
+### ChatInput
+- Text input with send button
+- Handles Enter key and button click events
+- Validates and trims user input
+
+### ChatMessage
+- Individual message display
+- Role-based styling (user vs assistant)
+- Timestamp display
+- System messages are filtered out
+
+## Testing
+
+Comprehensive test suite covering:
+
+- **Unit Tests**: Individual component functionality
+- **Integration Tests**: Complete conversation flows
+- **API Tests**: Service layer with mocked responses
+- **Accessibility Tests**: Keyboard navigation and screen readers
+- **Error Scenarios**: Network failures and API errors
+
+```bash
+# Run all tests
+npm run test
+
+# Run tests in watch mode
+npm run test:watch
+
+# Run tests with coverage report
+npm run test:coverage
+
+# Run tests with UI interface
+npm run test:ui
+```
+
+## Styling and Theming
+
+- **CSS Variables**: Easy customization of colors and spacing
+- **Responsive Design**: Mobile-first approach with breakpoints
+- **Dark/Light Theme**: Automatic switching based on system preference
+- **Modern UI**: Clean, minimalist design with smooth animations
+
+### Customization
+
+Modify CSS variables in `src/index.css` to customize the appearance:
+
+```css
+:root {
+  --primary-color: #0d6efd;
+  --user-message-bg: #0d6efd;
+  --assistant-message-bg: #f8f9fa;
+  /* ... more variables */
+}
+```
+
+## Accessibility
+
+- Full keyboard navigation support
+- Screen reader compatible
+- High contrast color schemes
+- Focus indicators for interactive elements
+- Semantic HTML structure
+
+## Performance
+
+- Optimized React rendering with proper key props
+- Efficient state management
+- Lazy loading and code splitting ready
+- Minimal bundle size with tree shaking
+
+## Browser Support
+
+- Chrome 90+
+- Firefox 88+
+- Safari 14+
+- Edge 90+
+
+## Contributing
+
+1. Follow the existing code style and patterns
+2. Write tests for new features
+3. Ensure accessibility compliance
+4. Test on multiple devices and browsers
+5. Update documentation as needed
+
+## License
+
+This project is part of the FastAPI RAG Application suite.
