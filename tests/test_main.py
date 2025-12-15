@@ -10,6 +10,7 @@ from unittest.mock import Mock, patch, MagicMock
 import sys
 from io import StringIO
 import inspect
+from fastapi.testclient import TestClient
 
 from src.main import app, main
 
@@ -168,7 +169,6 @@ class TestMainIntegration:
     def test_app_routes_are_accessible(self):
         """Test that all app routes are properly registered and accessible."""
         from src.main import app
-        from fastapi.testclient import TestClient
         
         client = TestClient(app)
         

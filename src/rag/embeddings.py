@@ -1,8 +1,8 @@
 """
-Embeddings configuration and providers for RAG processing.
+Enhanced embeddings with real Sentence Transformers implementation.
 
-This module provides abstract interfaces and configuration for embedding models.
-Currently serves as a placeholder for future embedding implementation.
+This module provides real embedding functionality using the sentence-transformers library
+for production RAG processing.
 """
 
 import logging
@@ -38,21 +38,22 @@ class EmbeddingConfig:
     batch_size: int = 32
     max_length: Optional[int] = None
     normalize_embeddings: bool = True
+    device: Optional[str] = None  # 'cpu', 'cuda', or None for auto-detection
     
     def __post_init__(self):
         """Set default values for optional parameters."""
         if self.model_kwargs is None:
             self.model_kwargs = {}
         if self.encode_kwargs is None:
-            self.encode_kwargs = {'normalize_embeddings': self.normalize_embeddings}
+            self.encode_kwargs = {
+                'normalize_embeddings': self.normalize_embeddings,
+                'batch_size': self.batch_size
+            }
 
 
 class EmbeddingProvider(ABC):
     """
     Abstract base class for embedding providers.
-    
-    This interface defines the contract for embedding implementations
-    that will be added in future iterations.
     """
     
     def __init__(self, config: EmbeddingConfig):
@@ -129,80 +130,174 @@ class EmbeddingProvider(ABC):
         return self._model is not None
 
 
+class SentenceTransformersProvider(EmbeddingProvider):
+    """
+    Real Sentence Transformers embedding provider.
+    
+    Uses the sentence-transformers library for generating embeddings.
+    """
+    
+    def __init__(self, config: EmbeddingConfig):
+        """Initialize the Sentence Transformers provider."""
+        super().__init__(config)
+        self._dimension = None
+        logger.info(f"Initialized Sentence Transformers provider with model: {config.model_name}")
+    
+    def load_model(self) -> None:
+        """
+        Load Sentence Transformers model.
+        
+        Raises:
+            EmbeddingError: If model loading fails
+        """
+        try:
+            from sentence_transformers import SentenceTransformer
+            
+            logger.info(f"Loading Sentence Transformers model: {self.config.model_name}")
+            
+            # Load the model with configuration
+            model_kwargs = self.config.model_kwargs.copy()
+            if self.config.device:
+                model_kwargs['device'] = self.config.device
+            
+            self._model = SentenceTransformer(
+                self.config.model_name,
+                **model_kwargs
+            )
+            
+            # Get embedding dimension
+            self._dimension = self._model.get_sentence_embedding_dimension()
+            
+            logger.info(f"Sentence Transformers model loaded successfully. Dimension: {self._dimension}")
+            
+        except ImportError as e:
+            raise EmbeddingError(
+                f"sentence-transformers library not available: {e}. "
+                "Install with: pip install sentence-transformers"
+            )
+        except Exception as e:
+            raise EmbeddingError(f"Failed to load Sentence Transformers model: {e}")
+    
+    def embed_documents(self, texts: List[str]) -> List[List[float]]:
+        """
+        Generate embeddings for documents using Sentence Transformers.
+        
+        Args:
+            texts: List of text strings to embed
+            
+        Returns:
+            List of embedding vectors
+            
+        Raises:
+            EmbeddingError: If embedding generation fails
+        """
+        if not self.is_loaded:
+            raise EmbeddingError("Model not loaded. Call load_model() first.")
+        
+        if not texts:
+            return []
+        
+        try:
+            logger.debug(f"Generating embeddings for {len(texts)} documents")
+            
+            # Generate embeddings with configuration
+            embeddings = self._model.encode(
+                texts,
+                **self.config.encode_kwargs
+            )
+            
+            # Convert to list of lists (numpy arrays to lists)
+            embeddings_list = [embedding.tolist() for embedding in embeddings]
+            
+            logger.debug(f"Generated {len(embeddings_list)} embeddings")
+            return embeddings_list
+            
+        except Exception as e:
+            raise EmbeddingError(f"Failed to generate document embeddings: {e}")
+    
+    def embed_query(self, text: str) -> List[float]:
+        """
+        Generate embedding for a query using Sentence Transformers.
+        
+        Args:
+            text: Query text to embed
+            
+        Returns:
+            Embedding vector
+            
+        Raises:
+            EmbeddingError: If embedding generation fails
+        """
+        if not self.is_loaded:
+            raise EmbeddingError("Model not loaded. Call load_model() first.")
+        
+        try:
+            logger.debug(f"Generating embedding for query: {text[:50]}...")
+            
+            # Generate single embedding
+            embedding = self._model.encode(
+                [text],
+                **self.config.encode_kwargs
+            )[0]
+            
+            # Convert to list (numpy array to list)
+            return embedding.tolist()
+            
+        except Exception as e:
+            raise EmbeddingError(f"Failed to generate query embedding: {e}")
+    
+    @property
+    def dimension(self) -> int:
+        """Get the embedding dimension."""
+        if self._dimension is None:
+            raise EmbeddingError("Model not loaded or dimension not available")
+        return self._dimension
+
+
 class PlaceholderEmbeddingProvider(EmbeddingProvider):
     """
     Placeholder embedding provider for development and testing.
     
-    This implementation provides mock functionality until real
-    embedding models are integrated.
+    This implementation provides mock functionality for fallback scenarios.
     """
     
     def __init__(self, config: EmbeddingConfig):
         """Initialize the placeholder provider."""
         super().__init__(config)
         self._dimension = 384  # Common dimension for sentence transformers
-        logger.info(f"Initialized placeholder embedding provider with model: {config.model_name}")
+        logger.warning(f"Using placeholder embedding provider with model: {config.model_name}")
     
     def load_model(self) -> None:
-        """
-        Mock model loading.
-        
-        In a real implementation, this would load the actual embedding model.
-        """
+        """Mock model loading."""
         logger.info(f"Loading placeholder model: {self.config.model_name}")
-        self._model = "placeholder_model"  # Mock model object
+        self._model = "placeholder_model"
         logger.info("Placeholder model loaded successfully")
     
     def embed_documents(self, texts: List[str]) -> List[List[float]]:
-        """
-        Generate mock embeddings for documents.
-        
-        Args:
-            texts: List of text strings to embed
-            
-        Returns:
-            List of mock embedding vectors
-            
-        Raises:
-            EmbeddingError: If provider is not loaded
-        """
+        """Generate mock embeddings for documents."""
         if not self.is_loaded:
             raise EmbeddingError("Model not loaded. Call load_model() first.")
         
         logger.debug(f"Generating mock embeddings for {len(texts)} documents")
         
-        # Generate mock embeddings (in real implementation, this would use the actual model)
         embeddings = []
         for i, text in enumerate(texts):
-            # Create a deterministic mock embedding based on text hash
+            # Create deterministic mock embedding based on text hash
             mock_embedding = [
                 float((hash(text + str(j)) % 1000) / 1000.0) 
                 for j in range(self._dimension)
             ]
             embeddings.append(mock_embedding)
         
-        logger.debug(f"Generated {len(embeddings)} mock embeddings")
         return embeddings
     
     def embed_query(self, text: str) -> List[float]:
-        """
-        Generate mock embedding for a query.
-        
-        Args:
-            text: Query text to embed
-            
-        Returns:
-            Mock embedding vector
-            
-        Raises:
-            EmbeddingError: If provider is not loaded
-        """
+        """Generate mock embedding for a query."""
         if not self.is_loaded:
             raise EmbeddingError("Model not loaded. Call load_model() first.")
         
         logger.debug(f"Generating mock embedding for query: {text[:50]}...")
         
-        # Generate mock embedding (in real implementation, this would use the actual model)
         mock_embedding = [
             float((hash(text + str(i)) % 1000) / 1000.0) 
             for i in range(self._dimension)
@@ -214,44 +309,6 @@ class PlaceholderEmbeddingProvider(EmbeddingProvider):
     def dimension(self) -> int:
         """Get the mock embedding dimension."""
         return self._dimension
-
-
-class SentenceTransformersProvider(EmbeddingProvider):
-    """
-    Sentence Transformers embedding provider.
-    
-    This is a placeholder for future implementation using the
-    sentence-transformers library.
-    """
-    
-    def __init__(self, config: EmbeddingConfig):
-        """Initialize the Sentence Transformers provider."""
-        super().__init__(config)
-        logger.info(f"Initialized Sentence Transformers provider (placeholder): {config.model_name}")
-    
-    def load_model(self) -> None:
-        """
-        Load Sentence Transformers model.
-        
-        TODO: Implement actual sentence-transformers integration
-        """
-        raise NotImplementedError(
-            "Sentence Transformers provider not yet implemented. "
-            "Use PlaceholderEmbeddingProvider for development."
-        )
-    
-    def embed_documents(self, texts: List[str]) -> List[List[float]]:
-        """Generate embeddings using Sentence Transformers."""
-        raise NotImplementedError("Not yet implemented")
-    
-    def embed_query(self, text: str) -> List[float]:
-        """Generate query embedding using Sentence Transformers."""
-        raise NotImplementedError("Not yet implemented")
-    
-    @property
-    def dimension(self) -> int:
-        """Get embedding dimension."""
-        raise NotImplementedError("Not yet implemented")
 
 
 def create_embedding_provider(config: EmbeddingConfig) -> EmbeddingProvider:
@@ -268,10 +325,12 @@ def create_embedding_provider(config: EmbeddingConfig) -> EmbeddingProvider:
         EmbeddingError: If provider type is not supported
     """
     if config.model_type == EmbeddingModelType.SENTENCE_TRANSFORMERS:
-        # For now, return placeholder provider
-        # TODO: Return SentenceTransformersProvider when implemented
-        logger.warning("Using placeholder provider instead of Sentence Transformers")
-        return PlaceholderEmbeddingProvider(config)
+        try:
+            return SentenceTransformersProvider(config)
+        except EmbeddingError as e:
+            logger.warning(f"Failed to create Sentence Transformers provider: {e}")
+            logger.warning("Falling back to placeholder provider")
+            return PlaceholderEmbeddingProvider(config)
     else:
         raise EmbeddingError(
             f"Unsupported embedding model type: {config.model_type}",
@@ -290,7 +349,8 @@ def get_default_config() -> EmbeddingConfig:
         model_type=EmbeddingModelType.SENTENCE_TRANSFORMERS,
         model_name="all-MiniLM-L6-v2",
         batch_size=32,
-        normalize_embeddings=True
+        normalize_embeddings=True,
+        device=None  # Auto-detect
     )
 
 
@@ -343,26 +403,35 @@ class EmbeddingManager:
         if not self._is_initialized:
             raise EmbeddingError("Embedding manager not initialized. Call initialize() first.")
         
+        if not documents:
+            return []
+        
         logger.info(f"Generating embeddings for {len(documents)} document chunks")
         
         try:
-            # Extract text content
-            texts = [doc.page_content for doc in documents]
-            
-            # Generate embeddings
-            embeddings = self.provider.embed_documents(texts)
-            
-            # Combine documents with embeddings
+            # Process in batches to manage memory
+            batch_size = self.config.batch_size
             embedded_documents = []
-            for doc, embedding in zip(documents, embeddings):
-                embedded_doc = {
-                    'content': doc.page_content,
-                    'metadata': doc.metadata,
-                    'embedding': embedding,
-                    'embedding_model': self.config.model_name,
-                    'embedding_dimension': self.provider.dimension
-                }
-                embedded_documents.append(embedded_doc)
+            
+            for i in range(0, len(documents), batch_size):
+                batch = documents[i:i + batch_size]
+                texts = [doc.page_content for doc in batch]
+                
+                # Generate embeddings for batch
+                embeddings = self.provider.embed_documents(texts)
+                
+                # Combine documents with embeddings
+                for doc, embedding in zip(batch, embeddings):
+                    embedded_doc = {
+                        'content': doc.page_content,
+                        'metadata': doc.metadata,
+                        'embedding': embedding,
+                        'embedding_model': self.config.model_name,
+                        'embedding_dimension': self.provider.dimension
+                    }
+                    embedded_documents.append(embedded_doc)
+                
+                logger.debug(f"Processed batch {i//batch_size + 1}/{(len(documents) + batch_size - 1)//batch_size}")
             
             logger.info(f"Successfully generated embeddings for {len(embedded_documents)} chunks")
             return embedded_documents

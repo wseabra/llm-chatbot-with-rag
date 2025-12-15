@@ -7,6 +7,12 @@ All FastAPI implementation details are moved to the api module.
 
 from src.api import create_app
 
+import logging
+
+# Configure debug logging
+logging.basicConfig(
+    level=logging.DEBUG,
+)
 # Initialize the FastAPI application
 app = create_app()
 
@@ -22,7 +28,7 @@ def main():
         app, 
         host="0.0.0.0", 
         port=8000,
-        log_level="info"
+        log_level="debug"
     )
 
 

@@ -1,16 +1,19 @@
 """
 RAG (Retrieval-Augmented Generation) module for document processing.
 
-This module provides functionality for loading, processing, and preparing
-documents for RAG-based AI interactions.
+This module provides comprehensive functionality for loading, processing,
+embedding, storing, and retrieving documents for RAG-based AI interactions.
 """
 
 from .document_loader import DocumentLoader, DocumentMetadata
 from .document_processor import DocumentProcessor, ProcessedDocument, ProcessingConfig
 from .embeddings import (
     EmbeddingConfig, EmbeddingProvider, EmbeddingManager, EmbeddingModelType,
-    PlaceholderEmbeddingProvider, create_embedding_provider, get_default_config
+    SentenceTransformersProvider, PlaceholderEmbeddingProvider, 
+    create_embedding_provider, get_default_config
 )
+from .vector_store import VectorStore, SearchResult
+from .rag_manager import RAGManager, RAGConfig
 from .exceptions import (
     RAGError,
     DocumentLoadError,
@@ -35,9 +38,18 @@ __all__ = [
     'EmbeddingProvider',
     'EmbeddingManager',
     'EmbeddingModelType',
+    'SentenceTransformersProvider',
     'PlaceholderEmbeddingProvider',
     'create_embedding_provider',
     'get_default_config',
+    
+    # Vector Store
+    'VectorStore',
+    'SearchResult',
+    
+    # RAG Manager
+    'RAGManager',
+    'RAGConfig',
     
     # Exceptions
     'RAGError',

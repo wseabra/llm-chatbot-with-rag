@@ -208,3 +208,7 @@ __marimo__/
 
 
 .coder-ide/
+
+data/
+launch.json
+rag/
