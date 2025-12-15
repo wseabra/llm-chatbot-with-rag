@@ -10,7 +10,20 @@ from unittest.mock import Mock, patch, MagicMock
 import sys
 from io import StringIO
 import inspect
-from fastapi.testclient import TestClient
+import httpx
+
+
+class SyncASGIClient:
+    """Minimal sync wrapper around httpx.AsyncClient for ASGI apps."""
+    def __init__(self, app):
+        self.transport = httpx.ASGITransport(app=app)
+        self.base_url = "http://test"
+    def get(self, url, **kwargs):
+        import asyncio
+        async def _run():
+            async with httpx.AsyncClient(transport=self.transport, base_url=self.base_url) as client:
+                return await client.get(url, **kwargs)
+        return asyncio.run(_run())
 
 from src.main import app, main
 
@@ -170,7 +183,7 @@ class TestMainIntegration:
         """Test that all app routes are properly registered and accessible."""
         from src.main import app
         
-        client = TestClient(app)
+        client = SyncASGIClient(app)
         
         # Test root route
         response = client.get("/")

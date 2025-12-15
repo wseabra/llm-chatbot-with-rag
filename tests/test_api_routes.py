@@ -8,7 +8,26 @@ chat completion endpoints, and error handling following the project's testing st
 import pytest
 import asyncio
 from unittest.mock import Mock, patch, AsyncMock
-from fastapi.testclient import TestClient
+import httpx
+
+
+class SyncASGIClient:
+    """Minimal sync wrapper around httpx.AsyncClient for ASGI apps."""
+    def __init__(self, app):
+        self.transport = httpx.ASGITransport(app=app)
+        self.base_url = "http://test"
+    def get(self, url, **kwargs):
+        import asyncio
+        async def _run():
+            async with httpx.AsyncClient(transport=self.transport, base_url=self.base_url) as client:
+                return await client.get(url, **kwargs)
+        return asyncio.run(_run())
+    def post(self, url, **kwargs):
+        import asyncio
+        async def _run():
+            async with httpx.AsyncClient(transport=self.transport, base_url=self.base_url) as client:
+                return await client.post(url, **kwargs)
+        return asyncio.run(_run())
 from fastapi import HTTPException
 
 from src.api import create_app
@@ -58,7 +77,7 @@ class TestRootRoutes:
     def client(self):
         """Fixture providing test client."""
         app = create_app()
-        return TestClient(app)
+        return SyncASGIClient(app)
     
     @pytest.mark.unit
     def test_read_root_success(self, client):
@@ -99,7 +118,7 @@ class TestHealthRoutes:
     def client(self):
         """Fixture providing test client."""
         app = create_app()
-        return TestClient(app)
+        return SyncASGIClient(app)
     
     @pytest.fixture
     def mock_health_response(self):
@@ -158,7 +177,7 @@ class TestChatRoutes:
     def client(self):
         """Fixture providing test client."""
         app = create_app()
-        return TestClient(app)
+        return SyncASGIClient(app)
     
     @pytest.fixture
     def mock_chat_response(self):
@@ -258,7 +277,7 @@ class TestIntegrationScenarios:
     def client(self):
         """Fixture providing test client."""
         app = create_app()
-        return TestClient(app)
+        return SyncASGIClient(app)
     
     @pytest.mark.integration
     @patch('src.api.routes.chat.ClientManager.get_client')

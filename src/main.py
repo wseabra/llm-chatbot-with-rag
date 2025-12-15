@@ -9,9 +9,9 @@ from src.api import create_app
 
 import logging
 
-# Configure debug logging
+# Configure info logging
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=logging.INFO,
 )
 # Initialize the FastAPI application
 app = create_app()
@@ -28,7 +28,7 @@ def main():
         app, 
         host="0.0.0.0", 
         port=8000,
-        log_level="debug"
+        log_level="info"
     )
 
 
