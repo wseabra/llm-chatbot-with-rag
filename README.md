@@ -18,7 +18,7 @@ A simplified, production-ready FastAPI application with Retrieval-Augmented Gene
 ├── src/                    # FastAPI Backend
 │   ├── api/               # API routes and dependencies
 │   │   ├── routes/        # Simplified routes (health, chat)
-│   │   ├── app.py         # Main application
+│   │   ├── app.py         # Main FastAPI application
 │   │   └── ...            # Dependencies and utilities
 │   ├── rag/               # RAG system (embeddings, vector store, documents)
 │   ├── config/            # Configuration management
@@ -28,7 +28,7 @@ A simplified, production-ready FastAPI application with Retrieval-Augmented Gene
 │   ├── src/services/      # Unified API integration
 │   └── src/types/         # TypeScript definitions
 ├── tests/                 # Comprehensive test suite
-└── examples/              # Usage examples and verification scripts
+└── run.py                 # Application main entrypoint 
 ```
 
 ## ⚡ Quick Start
@@ -48,7 +48,7 @@ mkdir rag
 # Add your .txt, .md, or .pdf files
 
 # 4. Start backend
-python src/main.py
+python run.py
 # API available at http://localhost:8000
 ```
 
