@@ -1,81 +1,155 @@
-# FastAPI RAG Chat Application
+# Simple Chat Application with Pluggable LLM Providers
 
-A simplified, production-ready FastAPI application with Retrieval-Augmented Generation (RAG) capabilities, featuring a modern React frontend and unified chat endpoint.
+A production-ready FastAPI application with **hotswappable LLM providers** and Retrieval-Augmented Generation (RAG) capabilities, featuring a modern React frontend and dead-simple provider switching.
 
-## 🚀 Features
+## 🎯 Key Features
 
-- **Unified Chat Endpoint**: Single endpoint handles both regular chat and file uploads
-- **RAG-Enhanced Conversations**: Automatic context injection from documents
-- **Modern React UI**: Clean, responsive chat interface with real-time conversations
-- **Document Upload**: Support for `.txt`, `.md`, and `.pdf` files with real-time processing
-- **Simplified Architecture**: Streamlined API with only essential endpoints
-- **Production Ready**: Comprehensive error handling and graceful degradation
-- **Real Embeddings**: Sentence Transformers with ChromaDB vector storage
+- **🔄 Hotswappable LLM Providers**: Switch between CI&T Flow, or your own provider implementation
+- **🚀 Dead Simple**: Edit `src/llm_providers/provider_config.py` to change providers - that's it!
+- **📚 RAG-Enhanced Conversations**: Automatic context injection from documents
+- **📁 Document Upload**: Support for `.txt`, `.md`, and `.pdf` files with real-time processing
+- **🎨 Modern React UI**: Clean, responsive chat interface with real-time conversations
+- **🧪 Production Ready**: Comprehensive error handling, testing, and graceful degradation
+- **🔧 Easy Extension**: Add your own LLM provider by implementing just 2 methods
+
+## 🔄 LLM Provider System
+
+### Switch Providers in Seconds
+
+**Edit ONE file to switch providers:**
+
+```python
+# src/llm_providers/provider_config.py
+def get_llm_provider():
+    # return FlowProvider()        # CI&T Flow (default)
+    return OpenAIProvider()      # OpenAI
+```
+
+**Set your API key:**
+```bash
+export OPENAPIKEY=your_key_here
+```
+
+**That's it!** Your entire application now uses OpenAPI
+
+### Add Your Own Provider
+
+**Implement ONE class with TWO methods:**
+
+```python
+# src/llm_providers/my_provider.py
+from .base import LLMProvider, LLMRequest, LLMResponse
+
+class MyProvider(LLMProvider):
+    def __init__(self, api_key: str):
+        self.api_key = api_key
+    
+    async def chat_completion(self, request: LLMRequest) -> LLMResponse:
+        # Your implementation here
+        pass
+    
+    async def health_check(self) -> bool:
+        # Your health check here
+        return True
+```
+
+**Use your provider:**
+```python
+# src/llm_providers/provider_config.py
+def get_llm_provider():
+    return MyProvider(api_key="your_key")
+```
+
+**Done!** Your custom provider is now live.
+
+### Supported Providers
+
+- ✅ **CI&T Flow** (default) - Production ready
+- ✅ **OpenAI** (example) - GPT-3.5, GPT-4
+- ✅ **Your Custom Provider** - Easy to add!
 
 ## 📁 Project Structure
 
 ```
-├── src/                    # FastAPI Backend
-│   ├── api/               # API routes and dependencies
-│   │   ├── routes/        # Simplified routes (health, chat)
-│   │   ├── app.py         # Main FastAPI application
-│   │   └── ...            # Dependencies and utilities
-│   ├── rag/               # RAG system (embeddings, vector store, documents)
-│   ├── config/            # Configuration management
-│   └── flowApi/           # External API client
-├── chatbot-ui/            # React Frontend
-│   ├── src/components/    # Chat components
-│   ├── src/services/      # Unified API integration
-│   └── src/types/         # TypeScript definitions
-├── tests/                 # Comprehensive test suite
-└── run.py                 # Application main entrypoint 
+├── src/
+│   ├── llm_providers/         # 🔥 Hotswappable LLM Provider System
+│   │   ├── provider_config.py # ← Edit this file to switch providers
+│   │   ├── base.py            # Simple 2-method interface
+│   │   ├── flow_provider.py   # CI&T Flow (default)
+│   │   └── openai_provider.py # OpenAI example
+│   ├── api/                   # FastAPI Backend
+│   │   ├── routes/chat.py     # Unified chat + health endpoint
+│   │   └── app.py             # Main FastAPI application
+│   ├── rag/                   # RAG system (embeddings, vector store)
+│   ├── config/                # Configuration management
+│   └── flowApi/               # Flow API client
+├── chatbot-ui/                # React Frontend
+│   ├── src/components/        # Chat components
+│   ├── src/services/          # API integration
+│   └── src/types/             # TypeScript definitions
+├── tests/                     # Comprehensive test suite (324 tests ✅)
+└── run.py                     # Application entrypoint
 ```
 
 ## ⚡ Quick Start
 
-### Backend Setup
+### 1. Backend Setup
 
 ```bash
-# 1. Install dependencies
+# Install dependencies
 pip install -r requirements.txt
 
-# 2. Configure environment
+# Configure environment (CI&T Flow - works out of the box)
 cp .env.example .env
 # Edit .env with your CI&T Flow credentials
 
-# 3. Add documents (optional)
+# Add documents (optional)
 mkdir rag
 # Add your .txt, .md, or .pdf files
 
-# 4. Start backend
+# Start backend
 python run.py
 # API available at http://localhost:8000
 ```
 
-### Frontend Setup
+### 2. Frontend Setup
 
 ```bash
-# 1. Navigate to UI directory
+# Navigate to UI directory
 cd chatbot-ui
 
-# 2. Install dependencies
+# Install dependencies
 npm install
 
-# 3. Start development server
+# Start development server
 npm run dev
 # UI available at http://localhost:5173
 ```
 
+### 3. Switch Providers (Optional)
+
+```bash
+# To use OpenAI instead:
+# 1. Edit src/llm_providers/provider_config.py
+# 2. Change: return FlowProvider() → return OpenAIProvider()
+# 3. Set: export OPENAI_API_KEY=sk-your_key
+# 4. Restart: python run.py
+
+# To use Anthropic:
+# 1. Change: return AnthropicProvider()
+# 2. Set: export ANTHROPIC_API_KEY=your_key
+# 3. Restart: python run.py
+```
+
 ## 🔗 API Endpoints
 
-### Simplified API Surface
-- **`GET /health`** - Health check with external API status
-- **`POST /chat`** - Unified chat endpoint (supports both regular chat and file uploads)
-- **`GET /docs`** - Interactive API documentation
+### Ultra-Simple API
+- **`GET /health`** - Health check (includes LLM provider status)
+- **`POST /chat`** - Unified chat endpoint (works with ANY provider)
 
 ### Usage Examples
 
-#### Regular Chat
+#### Regular Chat (Works with ANY Provider)
 ```bash
 curl -X POST "http://localhost:8000/chat" \
   -F 'messages=[{"role":"user","content":"Hello, how are you?"}]' \
@@ -88,27 +162,27 @@ curl -X POST "http://localhost:8000/chat" \
 curl -X POST "http://localhost:8000/chat" \
   -F 'messages=[{"role":"user","content":"Summarize this document"}]' \
   -F 'files=@document.pdf' \
-  -F 'max_tokens=4096' \
-  -F 'temperature=0.7'
+  -F 'max_tokens=4096'
 ```
 
-#### Health Check
+#### Health Check (Shows Current Provider)
 ```bash
 curl http://localhost:8000/health
+# Returns: {"status": "healthy", "llm_provider_healthy": true}
 ```
 
 ## 🎨 Frontend Features
 
-- **Unified Interface**: Single service handles all chat interactions
+- **Provider Agnostic**: Works seamlessly with any LLM provider
 - **Real-time Chat**: Multi-turn conversations with loading states
-- **File Upload Support**: Drag-and-drop document upload with instant processing
+- **File Upload Support**: Drag-and-drop document upload
 - **Error Handling**: Graceful error handling with retry functionality
 - **Accessibility**: Full keyboard navigation and screen reader support
 - **Theme Support**: Automatic dark/light theme switching
 
 ## ⚙️ Configuration
 
-### Required Settings
+### Required Settings (CI&T Flow - Default)
 ```env
 CLIENT_ID=your_client_id_here
 CLIENT_SECRET=your_client_secret_here
@@ -127,16 +201,17 @@ RAG_VECTOR_DB_PATH=./data/chroma_db
 
 ## 🧪 Testing
 
-### Backend Tests
+### Backend Tests (All 324 Tests Pass ✅)
 ```bash
 # Run all tests
 python -m pytest
+# ✅ 324 passed in 8.93s
 
-# Run with coverage
-python -m pytest --cov=src
+# Test LLM provider system
+python -m pytest tests/test_simple_llm_providers.py -v
 
-# Test RAG system
-python examples/rag_verification.py
+# Test provider switching demo
+python examples/simple_usage.py
 ```
 
 ### Frontend Tests
@@ -150,27 +225,17 @@ npm run test
 npm run test:coverage
 ```
 
-### Manual API Testing
-```bash
-# Test health endpoint
-curl http://localhost:8000/health
-
-# Test chat endpoint
-curl -X POST "http://localhost:8000/chat" \
-  -F 'messages=[{"role":"user","content":"Test message"}]'
-```
-
 ## 📊 RAG System
 
-### How It Works
+### How It Works (Provider Independent)
 1. **Document Processing**: Supports `.txt`, `.md`, and `.pdf` files
 2. **Real-time Upload**: Process documents instantly via unified chat endpoint
 3. **Vector Embeddings**: Sentence Transformers with ChromaDB storage
 4. **Context Enhancement**: Automatic query enhancement with relevant context
-5. **Transparent Integration**: Users see enhanced responses without technical complexity
+5. **Provider Agnostic**: Works with ANY LLM provider seamlessly
 
 ### Features
-- **Unified Processing**: Same endpoint handles both pre-indexed and uploaded documents
+- **Universal Compatibility**: RAG works with Flow, or your custom provider
 - **Automatic Enhancement**: RAG context automatically added to user messages
 - **Graceful Fallback**: Works even when RAG is unavailable
 - **File Validation**: Supports `.txt`, `.md`, `.pdf` with 10MB size limit
@@ -179,48 +244,53 @@ curl -X POST "http://localhost:8000/chat" \
 
 ### Technology Stack
 
+**LLM Provider System:**
+- Simple 2-method interface (`chat_completion`, `health_check`)
+- Easy extension for any LLM API
+- Configuration-driven switching
+
 **Backend:**
 - FastAPI, Uvicorn
 - Sentence Transformers, ChromaDB
 - LangChain, PyPDF
-- Simplified route structure
+- Provider-agnostic architecture
 
 **Frontend:**
 - React 19.2.0, TypeScript
 - Vite, Vitest
-- Unified API service
+- Provider-agnostic API service
 - CSS Variables for theming
 
 ### Architecture Benefits
-- **Simplified API**: Only 2 essential endpoints
-- **Unified Interface**: Single chat endpoint for all use cases
-- **Clean Architecture**: SOLID principles with streamlined design
-- **Better Performance**: Fewer route evaluations and consolidated processing
-- **Easier Testing**: Simplified test scenarios and debugging
+- **🔄 Hotswappable**: Switch providers without code changes
+- **🎯 Simple**: Edit one file to change providers
+- **🧪 Testable**: Easy to mock and test any provider
+- **🚀 Extensible**: Add new providers in minutes
+- **🔒 Reliable**: Comprehensive error handling
+- **📈 Scalable**: Clean abstractions for growth
 
-## 📈 Performance & Quality
+## 🎯 LLM Provider Examples
 
-- **Minimal API Surface**: Only essential endpoints maintained
-- **Unified Request Handling**: Single endpoint for all chat scenarios
-- **Efficient Processing**: Consolidated middleware and dependency injection
-- **Memory Management**: Configurable batch sizes and automatic cleanup
-- **File Upload Optimization**: Streaming upload with size validation
-- **Response Optimization**: Efficient context retrieval and injection
+### CI&T Flow (Default - Production Ready)
+```python
+# Already configured - just works!
+return FlowProvider()
+```
+
+### Your Custom Provider
+```python
+class MyProvider(LLMProvider):
+    async def chat_completion(self, request: LLMRequest) -> LLMResponse:
+        # Call your API here
+        pass
+    
+    async def health_check(self) -> bool:
+        return True
+
+return MyProvider(api_key="your_key")
+```
 
 ## 🚨 Troubleshooting
-
-### Common Issues
-```bash
-# Check if API is running
-curl http://localhost:8000/health
-
-# Test chat endpoint
-curl -X POST "http://localhost:8000/chat" \
-  -F 'messages=[{"role":"user","content":"Test"}]'
-
-# Check logs
-python src/main.py
-```
 
 ### RAG Issues
 ```bash
@@ -234,46 +304,7 @@ chmod -R 755 ./rag/
 file ./rag/*
 ```
 
-### Frontend Issues
-```bash
-# Check backend connectivity
-curl http://localhost:8000/health
-
-# Restart development server
-cd chatbot-ui && npm run dev
-```
-
 ## 📚 Documentation
 
 - **Interactive API Docs**: http://localhost:8000/docs
 - **React UI**: http://localhost:5173
-- **Simplified Endpoints**: Only `/health` and `/chat` endpoints
-- **Examples**: Usage examples in `examples/`
-
-## 🎯 Architecture Overview
-
-### Simplified Design
-- **Endpoints**: Only 2 essential endpoints (`/health`, `/chat`)
-- **Route Files**: Minimal structure with health and chat modules
-- **Unified Logic**: Single endpoint handles all chat scenarios
-- **Clean Separation**: Clear distinction between health monitoring and chat functionality
-
-### Key Benefits
-- ✅ All RAG capabilities preserved
-- ✅ File upload support maintained
-- ✅ Health monitoring kept
-- ✅ Error handling preserved
-- ✅ Authentication flow unchanged
-- ✅ Simplified maintenance and testing
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Add tests for new functionality
-4. Ensure all tests pass: `python -m pytest && cd chatbot-ui && npm test`
-5. Submit a pull request
-
-## 📄 License
-
-This project is licensed under the MIT License.

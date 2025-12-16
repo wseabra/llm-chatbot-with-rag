@@ -28,15 +28,11 @@ class SyncASGIClient:
             async with httpx.AsyncClient(transport=self.transport, base_url=self.base_url) as client:
                 return await client.post(url, **kwargs)
         return asyncio.run(_run())
+
 from fastapi import HTTPException
 
 from src.api import create_app
-from src.flowApi.client import APIClient
-from src.flowApi.models import HealthResponse, ChatCompletionResponse, ChatCompletionChoice, ChatCompletionUsage, ChatMessage
-from src.flowApi.exceptions import (
-    APIConnectionError, APITimeoutError, APIHTTPError, 
-    APIResponseError, APIAuthenticationError, APIConfigurationError
-)
+from src.llm_providers.base import LLMProvider, LLMRequest, LLMResponse, LLMMessage, LLMChoice, LLMUsage
 
 
 class TestAPIApp:
@@ -51,7 +47,7 @@ class TestAPIApp:
         assert hasattr(app, 'title')
         assert hasattr(app, 'description')
         assert hasattr(app, 'version')
-        assert app.title == "FastAPI RAG Application"
+        assert app.title == "Simple Chat Application with Pluggable LLM Providers"
         assert app.version == "1.0.0"
     
     @pytest.mark.unit
@@ -62,12 +58,8 @@ class TestAPIApp:
         # Check that routes are registered
         route_paths = [route.path for route in app.routes]
         
-        assert "/" in route_paths
         assert "/health" in route_paths
-        assert "/health/simple" in route_paths
-        # Chat routes have prefix, so they appear as /chat/completion, etc.
-        chat_routes = [path for path in route_paths if path.startswith("/chat")]
-        assert len(chat_routes) >= 2  # At least /chat/completion and /chat/advanced
+        assert "/chat" in route_paths
 
 
 class TestRootRoutes:
@@ -81,34 +73,21 @@ class TestRootRoutes:
     
     @pytest.mark.unit
     def test_read_root_success(self, client):
-        """Test successful root endpoint response."""
+        """Test that root endpoint returns 404 (no root route in simple implementation)."""
         response = client.get("/")
         
-        assert response.status_code == 200
-        data = response.json()
-        
-        assert data["message"] == "FastAPI RAG Application"
-        assert data["status"] == "success"
-        assert data["version"] == "1.0.0"
-        assert "description" in data
-        assert "endpoints" in data
-        assert isinstance(data["endpoints"], dict)
+        # Simple implementation doesn't have a root route
+        assert response.status_code == 404
     
     @pytest.mark.unit
     def test_read_root_response_structure(self, client):
-        """Test root endpoint response structure."""
+        """Test root endpoint response structure (404 in simple implementation)."""
         response = client.get("/")
         data = response.json()
         
-        required_fields = ["message", "status", "version", "description", "endpoints"]
-        for field in required_fields:
-            assert field in data
-        
-        # Check endpoints structure
-        endpoints = data["endpoints"]
-        expected_endpoints = ["health", "chat", "docs", "redoc"]
-        for endpoint in expected_endpoints:
-            assert endpoint in endpoints
+        # FastAPI default 404 response
+        assert "detail" in data
+        assert data["detail"] == "Not Found"
 
 
 class TestHealthRoutes:
@@ -120,41 +99,14 @@ class TestHealthRoutes:
         app = create_app()
         return SyncASGIClient(app)
     
-    @pytest.fixture
-    def mock_health_response(self):
-        """Fixture providing mock HealthResponse."""
-        return HealthResponse(
-            result=True,
-            timestamp="2025-12-11T15:01:23.000Z"
-        )
-    
-    @pytest.fixture
-    def mock_unhealthy_response(self):
-        """Fixture providing mock unhealthy HealthResponse."""
-        return HealthResponse(
-            result=False,
-            timestamp="2025-12-11T15:01:23.000Z"
-        )
-    
     @pytest.mark.unit
-    def test_simple_health_check_success(self, client):
-        """Test simple health check endpoint."""
-        response = client.get("/health/simple")
-        
-        assert response.status_code == 200
-        data = response.json()
-        
-        assert data["status"] == "healthy"
-        assert data["message"] == "Local service is running"
-    
-    @pytest.mark.unit
-    @patch('src.api.routes.health.ClientManager.get_client')
-    def test_health_check_success(self, mock_get_client, client, mock_health_response):
+    @patch('src.llm_providers.dependencies.get_llm_provider')
+    def test_health_check_success(self, mock_get_provider, client):
         """Test successful health check."""
-        # Setup async mock
-        mock_client = Mock(spec=APIClient)
-        mock_client.health_check.return_value = mock_health_response
-        mock_get_client.return_value = mock_client
+        # Setup mock provider
+        mock_provider = Mock(spec=LLMProvider)
+        mock_provider.health_check = AsyncMock(return_value=True)
+        mock_get_provider.return_value = mock_provider
         
         response = client.get("/health")
         
@@ -163,11 +115,15 @@ class TestHealthRoutes:
         
         assert data["status"] == "healthy"
         assert data["message"] == "Service is running"
-        assert data["external_api"]["status"] == "healthy"
-        assert data["external_api"]["timestamp"] == "2025-12-11T15:01:23.000Z"
+        assert data["llm_provider_healthy"] == True
+    
+    @pytest.mark.unit
+    def test_simple_health_check_success(self, client):
+        """Test that simple health check doesn't exist in consolidated implementation."""
+        response = client.get("/health/simple")
         
-        # Verify API client was called correctly
-        mock_client.health_check.assert_called_once_with()
+        # Simple implementation doesn't have /health/simple
+        assert response.status_code == 404
 
 
 class TestChatRoutes:
@@ -180,94 +136,86 @@ class TestChatRoutes:
         return SyncASGIClient(app)
     
     @pytest.fixture
-    def mock_chat_response(self):
-        """Fixture providing mock ChatCompletionResponse."""
-        message = ChatMessage(role="assistant", content="Hello! How can I help you today?")
-        choice = ChatCompletionChoice(index=0, message=message, finish_reason="stop")
-        usage = ChatCompletionUsage(prompt_tokens=10, completion_tokens=12, total_tokens=22)
+    def mock_llm_response(self):
+        """Fixture providing mock LLMResponse."""
+        choice = LLMChoice(
+            message=LLMMessage(role="assistant", content="Hello! How can I help you today?"),
+            finish_reason="stop"
+        )
+        usage = LLMUsage(prompt_tokens=10, completion_tokens=12, total_tokens=22)
         
-        return ChatCompletionResponse(
+        return LLMResponse(
             id="chatcmpl-123",
-            object="chat.completion",
-            created=1677652288,
             model="gpt-4o-mini",
             choices=[choice],
             usage=usage
         )
     
     @pytest.mark.unit
-    @patch('src.api.routes.chat.ClientManager.get_client')
-    def test_chat_completion_success(self, mock_get_client, client, mock_chat_response):
-        """Test successful simple chat completion."""
-        # Setup async mock
-        mock_client = Mock(spec=APIClient)
-        mock_client.chat_completion.return_value = mock_chat_response
-        mock_get_client.return_value = mock_client
+    @patch('src.llm_providers.dependencies.get_llm_provider')
+    def test_chat_completion_success(self, mock_get_provider, client, mock_llm_response):
+        """Test successful chat completion."""
+        # Setup mock provider
+        mock_provider = Mock(spec=LLMProvider)
+        mock_provider.chat_completion = AsyncMock(return_value=mock_llm_response)
+        mock_get_provider.return_value = mock_provider
         
-        request_data = {
-            "message": "Hello, how are you?",
+        # Prepare form data for the endpoint
+        form_data = {
+            "messages": '[{"role": "user", "content": "Hello, how are you?"}]',
             "max_tokens": 100,
             "temperature": 0.8
         }
         
-        response = client.post("/chat/completion", json=request_data)
+        response = client.post("/chat", data=form_data)
         
         assert response.status_code == 200
         data = response.json()
         
+        # Check the response structure matches our mock
         assert data["id"] == "chatcmpl-123"
         assert data["model"] == "gpt-4o-mini"
-        assert data["content"] == "Hello! How can I help you today?"
-        assert data["finish_reason"] == "stop"
+        assert data["choices"][0]["message"]["content"] == "Hello! How can I help you today?"
+        assert data["choices"][0]["finish_reason"] == "stop"
         assert data["usage"]["total_tokens"] == 22
-        assert data["created"] == 1677652288
         
-        # Verify API client was called correctly
-        mock_client.chat_completion.assert_called_once_with(
-            user_message="Hello, how are you?",
-            max_tokens=100,
-            temperature=0.8
-        )
+        # Verify the mock was called
+        mock_provider.chat_completion.assert_called_once()
     
     @pytest.mark.unit
     def test_chat_completion_invalid_request_missing_message(self, client):
         """Test chat completion with missing message field."""
-        request_data = {"max_tokens": 100}
+        form_data = {"max_tokens": 100}
         
-        response = client.post("/chat/completion", json=request_data)
+        response = client.post("/chat", data=form_data)
         
-        assert response.status_code == 422  # FastAPI validation error
+        # FastAPI will return 422 for missing required field
+        assert response.status_code == 422
     
     @pytest.mark.unit
     def test_chat_completion_invalid_request_empty_message(self, client):
         """Test chat completion with empty message."""
-        request_data = {"message": ""}
+        form_data = {"messages": "[]"}  # Empty messages array
         
-        response = client.post("/chat/completion", json=request_data)
+        response = client.post("/chat", data=form_data)
         
-        assert response.status_code == 422  # Pydantic validation error
-        data = response.json()
-        # FastAPI validation error format
-        assert "detail" in data
-        assert isinstance(data["detail"], list)
-        assert len(data["detail"]) > 0
+        # Should return 400 for empty messages
+        assert response.status_code == 400
 
 
 class TestAPIClientDependency:
-    """Test suite for APIClient dependency injection."""
+    """Test suite for LLM provider dependency injection."""
     
     @pytest.mark.unit
-    async def test_get_api_client_returns_instance(self):
-        """Test that get_api_client dependency returns APIClient instance."""
-        from src.api.routes.health import get_api_client
+    async def test_get_llm_provider_dependency_returns_instance(self):
+        """Test that get_llm_provider_dependency returns LLMProvider instance."""
+        from src.llm_providers.dependencies import get_llm_provider_dependency
         
-        # Since get_api_client is async, we need to run it in an event loop
-        client = await get_api_client()
+        provider = await get_llm_provider_dependency()
         
-        assert isinstance(client, APIClient)
-        assert hasattr(client, 'health_check')
-        assert hasattr(client, 'chat_completion')
-        assert hasattr(client, 'send_chat_request')
+        assert isinstance(provider, LLMProvider)
+        assert hasattr(provider, 'health_check')
+        assert hasattr(provider, 'chat_completion')
 
 
 class TestIntegrationScenarios:
@@ -280,17 +228,16 @@ class TestIntegrationScenarios:
         return SyncASGIClient(app)
     
     @pytest.mark.integration
-    @patch('src.api.routes.chat.ClientManager.get_client')
-    def test_complete_api_workflow(self, mock_get_client, client):
-        """Test complete API workflow from root to health to chat."""
-        # Test root endpoint
-        response = client.get("/")
-        assert response.status_code == 200
-        root_data = response.json()
-        assert "endpoints" in root_data
+    @patch('src.llm_providers.dependencies.get_llm_provider')
+    def test_complete_api_workflow(self, mock_get_provider, client):
+        """Test complete API workflow from health to chat."""
+        # Setup mock provider
+        mock_provider = Mock(spec=LLMProvider)
+        mock_provider.health_check = AsyncMock(return_value=True)
+        mock_get_provider.return_value = mock_provider
         
-        # Test simple health check
-        response = client.get("/health/simple")
+        # Test health check
+        response = client.get("/health")
         assert response.status_code == 200
         health_data = response.json()
         assert health_data["status"] == "healthy"

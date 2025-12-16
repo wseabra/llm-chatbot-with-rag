@@ -38,7 +38,7 @@ class TestMainModule:
         assert hasattr(app, 'title')
         assert hasattr(app, 'description')
         assert hasattr(app, 'version')
-        assert app.title == "FastAPI RAG Application"
+        assert app.title == "Simple Chat Application with Pluggable LLM Providers"
         assert app.version == "1.0.0"
     
     @pytest.mark.unit
@@ -46,21 +46,16 @@ class TestMainModule:
         """Test that app has all required routes."""
         route_paths = [route.path for route in app.routes]
         
-        # Check for required routes
-        assert "/" in route_paths
+        # Check for required routes in simple implementation
         assert "/health" in route_paths
-        assert "/health/simple" in route_paths
-        
-        # Check for chat routes (with prefix)
-        chat_routes = [path for path in route_paths if path.startswith("/chat")]
-        assert len(chat_routes) >= 2  # At least completion and advanced
+        assert "/chat" in route_paths
     
     @pytest.mark.unit
     def test_app_openapi_configuration(self):
         """Test that app has proper OpenAPI configuration."""
         assert app.docs_url == "/docs"
         assert app.redoc_url == "/redoc"
-        assert "RAG capabilities" in app.description
+        assert "Change LLM providers by editing one file" in app.description
     
     @pytest.mark.unit
     @patch('uvicorn.run')
@@ -175,7 +170,7 @@ class TestMainIntegration:
         assert isinstance(schema, dict)
         assert 'info' in schema
         assert 'paths' in schema
-        assert schema['info']['title'] == "FastAPI RAG Application"
+        assert schema['info']['title'] == "Simple Chat Application with Pluggable LLM Providers"
         assert schema['info']['version'] == "1.0.0"
     
     @pytest.mark.integration
@@ -185,13 +180,9 @@ class TestMainIntegration:
         
         client = SyncASGIClient(app)
         
-        # Test root route
+        # Test root route (should return 404 in simple implementation)
         response = client.get("/")
-        assert response.status_code == 200
-        
-        # Test simple health route
-        response = client.get("/health/simple")
-        assert response.status_code == 200
+        assert response.status_code == 404
         
         # Test OpenAPI docs
         response = client.get("/docs")
@@ -208,7 +199,7 @@ class TestMainIntegration:
         
         # Verify app is properly initialized before main() is called
         assert app is not None
-        assert app.title == "FastAPI RAG Application"
+        assert app.title == "Simple Chat Application with Pluggable LLM Providers"
         
         # Call main function
         main()
@@ -219,7 +210,7 @@ class TestMainIntegration:
         passed_app = call_args[0][0]
         
         assert passed_app is app
-        assert passed_app.title == "FastAPI RAG Application"
+        assert passed_app.title == "Simple Chat Application with Pluggable LLM Providers"
 
 
 class TestMainModuleStructure:
