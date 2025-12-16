@@ -1,8 +1,11 @@
 """
-Simplified FastAPI application with unified chat and health endpoints.
+Simple FastAPI application with pluggable LLM providers.
 
-This module contains the FastAPI application factory function with
-RAG system initialization at startup, supporting only essential endpoints.
+To use a different LLM provider, just modify:
+src/llm_providers/provider_config.py
+
+That's it! No complex configuration, no runtime switching.
+Just simple, clean code that's easy to extend.
 """
 
 import logging
@@ -10,12 +13,11 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .routes import health, chat
+from .routes import chat
 from .rag_dependency import set_rag_manager, cleanup_rag_manager
 from ..config.config import Config
 from ..rag.rag_manager import RAGManager, RAGConfig
 from ..rag.exceptions import RAGError
-
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -25,11 +27,12 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     """
     Lifespan context manager for FastAPI application.
-    Handles startup and shutdown events.
+    Handles startup and shutdown events for RAG system.
     """
     # Startup
-    logger.info("Starting FastAPI RAG Chat Application...")
+    logger.info("Starting FastAPI Chat Application with pluggable LLM providers...")
     
+    # Initialize RAG system (optional)
     try:
         # Load configuration
         config = Config()
@@ -39,7 +42,7 @@ async def lifespan(app: FastAPI):
         
         # Validate RAG folder
         if not config.validate_rag_folder():
-            logger.error(f"RAG folder is not valid: {config_dict.get('RAG_FOLDER', 'Not set')}")
+            logger.warning(f"RAG folder is not valid: {config_dict.get('RAG_FOLDER', 'Not set')}")
             logger.warning("RAG system will not be available")
         else:
             # Create RAG configuration
@@ -94,11 +97,14 @@ async def lifespan(app: FastAPI):
         logger.error(f"Unexpected error during RAG initialization: {e}")
         logger.warning("Application will continue without RAG functionality")
     
+    logger.info("Application startup completed successfully")
+    
     yield
     
     # Shutdown
-    logger.info("Shutting down FastAPI RAG Chat Application...")
+    logger.info("Shutting down FastAPI Chat Application...")
     
+    # Cleanup RAG system
     try:
         cleanup_rag_manager()
         logger.info("RAG system cleanup completed")
@@ -110,26 +116,26 @@ async def lifespan(app: FastAPI):
 
 def create_app() -> FastAPI:
     """
-    Create and configure the simplified FastAPI application with RAG integration.
+    Create and configure the simple FastAPI application.
     
     Returns:
         FastAPI: Configured FastAPI application instance
     """
     app = FastAPI(
-        title="FastAPI RAG Chat Application",
-        description="Simplified RAG-enhanced chat with file upload support using flowApi for AI interactions",
-        version="2.0.0",
+        title="Simple Chat Application with Pluggable LLM Providers",
+        description="Easy-to-extend chat application. Change LLM providers by editing one file!",
+        version="1.0.0",
         docs_url="/docs",
         redoc_url="/redoc",
         lifespan=lifespan
     )
     
-    # Add CORS middleware to handle frontend requests
+    # Add CORS middleware
     app.add_middleware(
         CORSMiddleware,
         allow_origins=[
-            "http://localhost:3000",  # React dev server default
-            "http://localhost:5173",  # Vite dev server default
+            "http://localhost:3000",  # React dev server
+            "http://localhost:5173",  # Vite dev server
             "http://127.0.0.1:3000",
             "http://127.0.0.1:5173",
         ],
@@ -138,8 +144,7 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
     
-    # Include only essential routers
-    app.include_router(health.router)
+    # Include chat router (includes health endpoint)
     app.include_router(chat.router)
     
     return app

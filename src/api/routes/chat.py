@@ -1,8 +1,7 @@
 """
-Unified chat endpoint with RAG and file upload support.
+Simple chat endpoint using the LLM provider abstraction.
 
-This module provides a single chat endpoint that handles both regular chat
-and chat with file uploads, using RAG for context enhancement.
+This shows how easy it is to use any LLM provider through the unified interface.
 """
 
 import json
@@ -17,13 +16,9 @@ from typing import List, Optional, Dict, Any, Tuple
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel, Field, field_validator
 
-from ...flowApi.client import APIClient
-from ...flowApi.models import ChatMessage, ChatCompletionRequest
-from ...flowApi.exceptions import (
-    APIConnectionError, APITimeoutError, APIHTTPError,
-    APIResponseError, APIAuthenticationError, APIConfigurationError,
-)
-from ..clientManager import ClientManager
+from ...llm_providers.base import LLMProvider, LLMRequest, LLMMessage
+from ...llm_providers.dependencies import get_llm_provider_dependency
+from ...llm_providers.exceptions import LLMProviderError
 from ..rag_dependency import get_rag_manager_optional
 from ...rag.rag_manager import RAGManager
 from ...rag.exceptions import RAGError
@@ -59,16 +54,6 @@ class ChatMessageModel(BaseModel):
         return v.strip()
 
 
-async def get_api_client() -> APIClient:
-    """
-    Dependency to get the shared APIClient instance.
-    
-    Returns:
-        APIClient: Shared API client instance from ClientManager
-    """
-    return await ClientManager.get_client()
-
-
 def _validate_file(file: UploadFile) -> None:
     """Validate uploaded file type and constraints."""
     suffix = Path(file.filename or "").suffix.lower()
@@ -83,12 +68,7 @@ def _validate_file(file: UploadFile) -> None:
 
 
 def _save_uploads_to_temp(files: List[UploadFile]) -> Tuple[Path, List[Tuple[str, str, str]]]:
-    """
-    Save uploaded files to a temporary folder and enforce size limit.
-
-    Returns a tuple of (temp_dir, uploaded_files_info)
-    where uploaded_files_info is a list of (file_path, document_id, original_filename).
-    """
+    """Save uploaded files to a temporary folder and enforce size limit."""
     temp_dir = Path(tempfile.mkdtemp(prefix="uploads_"))
     saved: List[Tuple[str, str, str]] = []
 
@@ -146,17 +126,7 @@ async def _enhance_message_with_rag(
     rag_manager: Optional[RAGManager],
     uploaded_infos: Optional[List[Tuple[str, str, str]]] = None
 ) -> Tuple[str, Dict[str, Any]]:
-    """
-    Enhance a user message with RAG context if available.
-    
-    Args:
-        user_message: Original user message
-        rag_manager: RAG manager instance (optional)
-        uploaded_infos: List of uploaded file info (optional)
-        
-    Returns:
-        Tuple of (enhanced_message, rag_metadata)
-    """
+    """Enhance a user message with RAG context if available."""
     rag_metadata = {
         "rag_enabled": False,
         "sources_used": 0,
@@ -209,46 +179,36 @@ async def _enhance_message_with_rag(
         
     except RAGError as e:
         logger.warning(f"RAG enhancement failed: {e}")
-        # Return original message as fallback
         return user_message, rag_metadata
     except Exception as e:
         logger.error(f"Unexpected error in RAG enhancement: {e}")
-        # Return original message as fallback
         return user_message, rag_metadata
 
 
 @router.post("/chat")
 async def chat_completion(
     messages: str = Form(..., description="JSON array of messages [{role, content}...]"),
-    client: APIClient = Depends(get_api_client),
+    llm_provider: LLMProvider = Depends(get_llm_provider_dependency),
     rag_manager: Optional[RAGManager] = Depends(get_rag_manager_optional),
     files: List[UploadFile] = File(default_factory=list),
     max_tokens: int = Form(4096),
     temperature: float = Form(0.7),
-    stream: bool = Form(False),
-    allowed_models: Optional[str] = Form(None, description="Comma-separated allowed models"),
 ):
     """
-    Unified chat endpoint that supports both regular chat and chat with file uploads.
+    Simple chat endpoint that works with any LLM provider.
     
-    Automatically enhances user queries with relevant context from indexed documents
-    and/or newly uploaded files using RAG (Retrieval-Augmented Generation).
+    To use a different provider, just modify src/llm_providers/provider_config.py
     
     Args:
         messages: JSON string of chat messages
-        client: APIClient dependency
-        rag_manager: RAG manager dependency (optional)
+        llm_provider: LLM provider (automatically injected)
+        rag_manager: RAG manager (optional)
         files: Optional list of uploaded files
         max_tokens: Maximum tokens to generate
         temperature: Sampling temperature
-        stream: Whether to stream the response
-        allowed_models: Comma-separated list of allowed models
         
     Returns:
         dict: Chat completion response with RAG metadata
-        
-    Raises:
-        HTTPException: If chat completion fails
     """
     temp_dir: Optional[Path] = None
 
@@ -269,15 +229,15 @@ async def chat_completion(
                 },
             )
 
-        # Convert to flowApi ChatMessage objects
-        chat_messages: List[ChatMessage] = [
-            ChatMessage(role=m.role, content=m.content) for m in parsed_models
+        # Convert to LLM provider messages
+        llm_messages: List[LLMMessage] = [
+            LLMMessage(role=m.role, content=m.content) for m in parsed_models
         ]
 
         # Find the last user message to enhance
         last_user_idx = None
-        for i in range(len(chat_messages) - 1, -1, -1):
-            if chat_messages[i].role == "user":
+        for i in range(len(llm_messages) - 1, -1, -1):
+            if llm_messages[i].role == "user":
                 last_user_idx = i
                 break
 
@@ -304,55 +264,57 @@ async def chat_completion(
             temp_dir, uploaded_infos = _save_uploads_to_temp(files)
 
         # Enhance last user message with RAG context
-        original_content = chat_messages[last_user_idx].content
+        original_content = llm_messages[last_user_idx].content
         enhanced_content, rag_metadata = await _enhance_message_with_rag(
             original_content, rag_manager, uploaded_infos
         )
         
         # Update the message with enhanced content
-        chat_messages[last_user_idx] = ChatMessage(role="user", content=enhanced_content)
+        llm_messages[last_user_idx] = LLMMessage(role="user", content=enhanced_content)
 
-        # Build request
-        models = [m.strip() for m in (allowed_models or "gpt-4o-mini").split(",") if m.strip()]
-        chat_request = ChatCompletionRequest(
-            messages=chat_messages,
+        # Build LLM request
+        llm_request = LLMRequest(
+            messages=llm_messages,
             max_tokens=max_tokens,
-            temperature=temperature,
-            stream=stream,
-            allowed_models=models,
+            temperature=temperature
         )
 
-        # Send to CI&T Flow API
-        response = client.send_chat_request(chat_request)
-        response_dict = response.to_dict()
-        response_dict["rag_metadata"] = rag_metadata
+        # Send to LLM provider (this works with ANY provider!)
+        logger.info(f"Sending request to LLM provider")
+        llm_response = await llm_provider.chat_completion(llm_request)
+        
+        # Build response
+        response_dict = {
+            "id": llm_response.id,
+            "model": llm_response.model,
+            "choices": [
+                {
+                    "message": {
+                        "role": choice.message.role,
+                        "content": choice.message.content
+                    },
+                    "finish_reason": choice.finish_reason
+                }
+                for choice in llm_response.choices
+            ],
+            "usage": {
+                "prompt_tokens": llm_response.usage.prompt_tokens,
+                "completion_tokens": llm_response.usage.completion_tokens,
+                "total_tokens": llm_response.usage.total_tokens
+            },
+            "rag_metadata": rag_metadata
+        }
         
         return response_dict
 
-    except ValueError as e:
-        raise HTTPException(
-            status_code=400,
-            detail={"status": "error", "message": "Invalid request parameters", "error": str(e)},
-        )
-    except APIConfigurationError as e:
-        raise HTTPException(
-            status_code=500, 
-            detail={"status": "error", "message": "Configuration error", "error": str(e)}
-        )
-    except APIAuthenticationError as e:
-        raise HTTPException(
-            status_code=401, 
-            detail={"status": "error", "message": "Authentication failed", "error": str(e)}
-        )
-    except (APIConnectionError, APITimeoutError) as e:
+    except LLMProviderError as e:
         raise HTTPException(
             status_code=503, 
-            detail={"status": "error", "message": "External API is unreachable", "error": str(e)}
-        )
-    except (APIHTTPError, APIResponseError) as e:
-        raise HTTPException(
-            status_code=502, 
-            detail={"status": "error", "message": "External API returned an error", "error": str(e)}
+            detail={
+                "status": "error", 
+                "message": "LLM provider error", 
+                "error": str(e)
+            }
         )
     except HTTPException:
         raise
@@ -370,3 +332,30 @@ async def chat_completion(
                 f.file.close()
             except Exception:
                 pass
+
+
+@router.get("/health")
+async def health_check(
+    llm_provider: LLMProvider = Depends(get_llm_provider_dependency)
+):
+    """
+    Health check endpoint that checks the LLM provider.
+    
+    Returns:
+        dict: Health status information
+    """
+    try:
+        is_healthy = await llm_provider.health_check()
+        
+        return {
+            "status": "healthy" if is_healthy else "unhealthy",
+            "message": "Service is running",
+            "llm_provider_healthy": is_healthy
+        }
+        
+    except Exception as e:
+        return {
+            "status": "degraded",
+            "message": "LLM provider health check failed",
+            "error": str(e)
+        }
