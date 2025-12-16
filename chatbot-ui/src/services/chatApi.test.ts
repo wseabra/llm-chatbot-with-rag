@@ -1,6 +1,6 @@
 /**
- * Tests for ChatAPI service
- * Ensures RAG metadata is properly filtered out
+ * Tests for simplified ChatAPI service
+ * Tests the unified chat endpoint
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest'
@@ -23,7 +23,7 @@ describe('ChatAPI Service', () => {
   })
 
   describe('sendMessage', () => {
-    it('should send message and return filtered response without RAG metadata', async () => {
+    it('should send message without files using unified endpoint', async () => {
       // Mock successful API response with RAG metadata
       vi.mocked(fetch).mockResolvedValueOnce(
         createMockFetchResponse(mockApiResponse)
@@ -31,24 +31,33 @@ describe('ChatAPI Service', () => {
 
       const result = await chatApi.sendMessage([mockUserMessage])
 
-      // Verify fetch was called with correct parameters
-      expect(fetch).toHaveBeenCalledWith('http://localhost:8000/chat/advanced', {
+      // Verify fetch was called with FormData to unified endpoint
+      expect(fetch).toHaveBeenCalledWith('http://localhost:8000/chat', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          messages: [mockUserMessage],
-          max_tokens: 4096,
-          temperature: 0.7,
-          stream: false,
-          allowed_models: ['gpt-4o-mini']
-        }),
+        body: expect.any(FormData),
       })
 
       // Verify RAG metadata is filtered out
       expect(result).toEqual(mockFilteredResponse)
       expect(result).not.toHaveProperty('rag_metadata')
+    })
+
+    it('should send message with files using unified endpoint', async () => {
+      const mockFile = new File(['test content'], 'test.txt', { type: 'text/plain' })
+      
+      vi.mocked(fetch).mockResolvedValueOnce(
+        createMockFetchResponse(mockApiResponse)
+      )
+
+      const result = await chatApi.sendMessage([mockUserMessage], [mockFile])
+
+      // Verify fetch was called with FormData including files
+      expect(fetch).toHaveBeenCalledWith('http://localhost:8000/chat', {
+        method: 'POST',
+        body: expect.any(FormData),
+      })
+
+      expect(result).toEqual(mockFilteredResponse)
     })
 
     it('should handle API errors gracefully', async () => {

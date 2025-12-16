@@ -1,5 +1,5 @@
 /**
- * Tests for ChatContainer component
+ * Tests for ChatContainer component with simplified API
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
@@ -27,7 +27,7 @@ vi.mock('./ChatHistory', () => ({
 }))
 
 vi.mock('./ChatInput', () => ({
-  default: ({ onSendMessage, disabled }: { onSendMessage: (msg: string) => void, disabled: boolean }) => (
+  default: ({ onSendMessage, disabled }: { onSendMessage: (msg: string, files?: File[]) => void, disabled: boolean }) => (
     <div data-testid="mock-chat-input">
       <button 
         onClick={() => onSendMessage('Test message')}
@@ -35,6 +35,13 @@ vi.mock('./ChatInput', () => ({
         data-testid="mock-send-button"
       >
         Send Test Message
+      </button>
+      <button 
+        onClick={() => onSendMessage('Test with files', [new File(['test'], 'test.txt')])}
+        disabled={disabled}
+        data-testid="mock-send-with-files-button"
+      >
+        Send With Files
       </button>
     </div>
   )
@@ -62,7 +69,7 @@ describe('ChatContainer', () => {
     expect(screen.getByTestId('messages-count')).toHaveTextContent('0')
   })
 
-  it('sends message and updates history', async () => {
+  it('sends message without files using unified endpoint', async () => {
     const user = userEvent.setup()
     mockSendMessage.mockResolvedValueOnce(mockFilteredResponse)
     
@@ -81,7 +88,32 @@ describe('ChatContainer', () => {
           role: 'user',
           content: 'Test message'
         })
-      ])
+      ], [])
+    })
+    
+    // Should have 2 messages (user + assistant)
+    await waitFor(() => {
+      expect(screen.getByTestId('messages-count')).toHaveTextContent('2')
+    })
+  })
+
+  it('sends message with files using unified endpoint', async () => {
+    const user = userEvent.setup()
+    mockSendMessage.mockResolvedValueOnce(mockFilteredResponse)
+    
+    render(<ChatContainer />)
+    
+    const sendWithFilesButton = screen.getByTestId('mock-send-with-files-button')
+    await user.click(sendWithFilesButton)
+    
+    // Wait for API call to complete
+    await waitFor(() => {
+      expect(mockSendMessage).toHaveBeenCalledWith([
+        expect.objectContaining({
+          role: 'user',
+          content: 'Test with files'
+        })
+      ], expect.arrayContaining([expect.any(File)]))
     })
     
     // Should have 2 messages (user + assistant)
@@ -171,7 +203,7 @@ describe('ChatContainer', () => {
       expect.objectContaining({ role: 'user', content: 'Test message' }),
       expect.objectContaining({ role: 'assistant' }),
       expect.objectContaining({ role: 'user', content: 'Test message' })
-    ])
+    ], [])
   })
 
   it('handles empty API response gracefully', async () => {

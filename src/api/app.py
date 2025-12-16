@@ -1,19 +1,17 @@
 """
-Enhanced FastAPI application factory with RAG initialization.
+Simplified FastAPI application with unified chat and health endpoints.
 
 This module contains the FastAPI application factory function with
-RAG system initialization at startup.
+RAG system initialization at startup, supporting only essential endpoints.
 """
 
 import logging
-import asyncio
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .routes import health, chat, root
-from .routes import upload as upload_routes
-from .rag_dependency import set_rag_manager, cleanup_rag_manager, get_rag_status
+from .routes import health, chat
+from .rag_dependency import set_rag_manager, cleanup_rag_manager
 from ..config.config import Config
 from ..rag.rag_manager import RAGManager, RAGConfig
 from ..rag.exceptions import RAGError
@@ -30,7 +28,7 @@ async def lifespan(app: FastAPI):
     Handles startup and shutdown events.
     """
     # Startup
-    logger.info("Starting FastAPI RAG Application...")
+    logger.info("Starting FastAPI RAG Chat Application...")
     
     try:
         # Load configuration
@@ -99,7 +97,7 @@ async def lifespan(app: FastAPI):
     yield
     
     # Shutdown
-    logger.info("Shutting down FastAPI RAG Application...")
+    logger.info("Shutting down FastAPI RAG Chat Application...")
     
     try:
         cleanup_rag_manager()
@@ -112,15 +110,15 @@ async def lifespan(app: FastAPI):
 
 def create_app() -> FastAPI:
     """
-    Create and configure the FastAPI application with RAG integration.
+    Create and configure the simplified FastAPI application with RAG integration.
     
     Returns:
         FastAPI: Configured FastAPI application instance
     """
     app = FastAPI(
-        title="FastAPI RAG Application",
-        description="A FastAPI application with RAG capabilities using flowApi for AI interactions",
-        version="1.0.0",
+        title="FastAPI RAG Chat Application",
+        description="Simplified RAG-enhanced chat with file upload support using flowApi for AI interactions",
+        version="2.0.0",
         docs_url="/docs",
         redoc_url="/redoc",
         lifespan=lifespan
@@ -140,20 +138,8 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
     
-    # Include routers
-    app.include_router(root.router)
+    # Include only essential routers
     app.include_router(health.router)
     app.include_router(chat.router)
-    app.include_router(upload_routes.router)
-    
-    @app.get("/rag/status", tags=["rag"])
-    async def rag_status():
-        """
-        Get RAG system status.
-        
-        Returns:
-            dict: RAG system status and statistics
-        """
-        return get_rag_status()
     
     return app

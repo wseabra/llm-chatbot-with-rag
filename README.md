@@ -1,31 +1,33 @@
 # FastAPI RAG Chat Application
 
-A production-ready FastAPI application with Retrieval-Augmented Generation (RAG) capabilities, featuring a modern React frontend and comprehensive testing suite.
+A simplified, production-ready FastAPI application with Retrieval-Augmented Generation (RAG) capabilities, featuring a modern React frontend and unified chat endpoint.
 
 ## 🚀 Features
 
-- **RAG-Enhanced Chat**: Automatic context injection from documents
+- **Unified Chat Endpoint**: Single endpoint handles both regular chat and file uploads
+- **RAG-Enhanced Conversations**: Automatic context injection from documents
 - **Modern React UI**: Clean, responsive chat interface with real-time conversations
 - **Document Upload**: Support for `.txt`, `.md`, and `.pdf` files with real-time processing
-- **FastAPI Backend**: High-performance API with automatic documentation
-- **Production Ready**: 265+ tests, comprehensive error handling, and graceful degradation
+- **Simplified Architecture**: Streamlined API with only essential endpoints
+- **Production Ready**: Comprehensive error handling and graceful degradation
 - **Real Embeddings**: Sentence Transformers with ChromaDB vector storage
-- **Postman Collection**: Complete API testing suite with automated scenarios
 
 ## 📁 Project Structure
 
 ```
 ├── src/                    # FastAPI Backend
 │   ├── api/               # API routes and dependencies
+│   │   ├── routes/        # Simplified routes (health, chat)
+│   │   ├── app.py         # Main application
+│   │   └── ...            # Dependencies and utilities
 │   ├── rag/               # RAG system (embeddings, vector store, documents)
 │   ├── config/            # Configuration management
 │   └── flowApi/           # External API client
 ├── chatbot-ui/            # React Frontend
 │   ├── src/components/    # Chat components
-│   ├── src/services/      # API integration
+│   ├── src/services/      # Unified API integration
 │   └── src/types/         # TypeScript definitions
-├── tests/                 # Comprehensive test suite (265+ tests)
-├── postman/               # API testing collection
+├── tests/                 # Comprehensive test suite
 └── examples/              # Usage examples and verification scripts
 ```
 
@@ -66,34 +68,38 @@ npm run dev
 
 ## 🔗 API Endpoints
 
-### Core Endpoints
-- **`GET /`** - Application info
-- **`GET /docs`** - Interactive API documentation
+### Simplified API Surface
 - **`GET /health`** - Health check with external API status
-- **`GET /rag/status`** - RAG system status and statistics
+- **`POST /chat`** - Unified chat endpoint (supports both regular chat and file uploads)
+- **`GET /docs`** - Interactive API documentation
 
-### Chat Endpoints
-- **`POST /chat/completion`** - Simple chat with RAG enhancement
-- **`POST /chat/advanced`** - Multi-turn conversations with full context
-- **`POST /chat/uploaded`** - Chat with document uploads (real-time processing)
+### Usage Examples
 
-### Example Usage
-
+#### Regular Chat
 ```bash
-# Simple chat
-curl -X POST "http://localhost:8000/chat/completion" \
-  -H "Content-Type: application/json" \
-  -d '{"message": "What are the main features?"}'
+curl -X POST "http://localhost:8000/chat" \
+  -F 'messages=[{"role":"user","content":"Hello, how are you?"}]' \
+  -F 'max_tokens=4096' \
+  -F 'temperature=0.7'
+```
 
-# Chat with file upload
-curl -X POST "http://localhost:8000/chat/uploaded" \
+#### Chat with File Upload
+```bash
+curl -X POST "http://localhost:8000/chat" \
   -F 'messages=[{"role":"user","content":"Summarize this document"}]' \
-  -F 'files=@document.pdf'
+  -F 'files=@document.pdf' \
+  -F 'max_tokens=4096' \
+  -F 'temperature=0.7'
+```
+
+#### Health Check
+```bash
+curl http://localhost:8000/health
 ```
 
 ## 🎨 Frontend Features
 
-- **Modern React Interface**: Clean, responsive design with TypeScript
+- **Unified Interface**: Single service handles all chat interactions
 - **Real-time Chat**: Multi-turn conversations with loading states
 - **File Upload Support**: Drag-and-drop document upload with instant processing
 - **Error Handling**: Graceful error handling with retry functionality
@@ -123,7 +129,7 @@ RAG_VECTOR_DB_PATH=./data/chroma_db
 
 ### Backend Tests
 ```bash
-# Run all 265+ tests
+# Run all tests
 python -m pytest
 
 # Run with coverage
@@ -142,32 +148,32 @@ npm run test
 
 # Run with coverage
 npm run test:coverage
-
-# Run with UI
-npm run test:ui
 ```
 
-### API Testing with Postman
+### Manual API Testing
 ```bash
-# Import collection from postman/ directory
-# Or run with Newman CLI
-newman run postman/FastAPI_RAG_Application.postman_collection.json \
-  -e postman/FastAPI_RAG_Environment.postman_environment.json
+# Test health endpoint
+curl http://localhost:8000/health
+
+# Test chat endpoint
+curl -X POST "http://localhost:8000/chat" \
+  -F 'messages=[{"role":"user","content":"Test message"}]'
 ```
 
 ## 📊 RAG System
 
 ### How It Works
 1. **Document Processing**: Supports `.txt`, `.md`, and `.pdf` files
-2. **Real-time Upload**: Process documents instantly via API
+2. **Real-time Upload**: Process documents instantly via unified chat endpoint
 3. **Vector Embeddings**: Sentence Transformers with ChromaDB storage
 4. **Context Enhancement**: Automatic query enhancement with relevant context
 5. **Transparent Integration**: Users see enhanced responses without technical complexity
 
-### RAG Status Monitoring
-```bash
-curl http://localhost:8000/rag/status
-```
+### Features
+- **Unified Processing**: Same endpoint handles both pre-indexed and uploaded documents
+- **Automatic Enhancement**: RAG context automatically added to user messages
+- **Graceful Fallback**: Works even when RAG is unavailable
+- **File Validation**: Supports `.txt`, `.md`, `.pdf` with 10MB size limit
 
 ## 🔧 Development
 
@@ -177,42 +183,55 @@ curl http://localhost:8000/rag/status
 - FastAPI, Uvicorn
 - Sentence Transformers, ChromaDB
 - LangChain, PyPDF
-- Comprehensive pytest suite
+- Simplified route structure
 
 **Frontend:**
 - React 19.2.0, TypeScript
 - Vite, Vitest
-- React Testing Library
+- Unified API service
 - CSS Variables for theming
 
-### Architecture Highlights
-- **Clean Architecture**: SOLID principles and separation of concerns
-- **Dependency Injection**: Clean FastAPI integration with optional RAG
-- **Error Handling**: Comprehensive exception hierarchy
-- **Resource Management**: Automatic cleanup and graceful shutdown
-- **Graceful Degradation**: Works even when RAG is unavailable
+### Architecture Benefits
+- **Simplified API**: Only 2 essential endpoints
+- **Unified Interface**: Single chat endpoint for all use cases
+- **Clean Architecture**: SOLID principles with streamlined design
+- **Better Performance**: Fewer route evaluations and consolidated processing
+- **Easier Testing**: Simplified test scenarios and debugging
 
 ## 📈 Performance & Quality
 
-- **265+ Tests**: Comprehensive backend and frontend test coverage
-- **Real Embeddings**: Production-grade Sentence Transformers
-- **Efficient Storage**: ChromaDB vector database with batch processing
-- **Memory Management**: Configurable batch sizes and chunking
-- **File Upload Limits**: 10MB per file with validation
+- **Minimal API Surface**: Only essential endpoints maintained
+- **Unified Request Handling**: Single endpoint for all chat scenarios
+- **Efficient Processing**: Consolidated middleware and dependency injection
+- **Memory Management**: Configurable batch sizes and automatic cleanup
+- **File Upload Optimization**: Streaming upload with size validation
 - **Response Optimization**: Efficient context retrieval and injection
 
 ## 🚨 Troubleshooting
 
-### RAG Issues
+### Common Issues
 ```bash
-# Check RAG status
-curl http://localhost:8000/rag/status
+# Check if API is running
+curl http://localhost:8000/health
 
-# Verify documents
-ls -la ./rag/
+# Test chat endpoint
+curl -X POST "http://localhost:8000/chat" \
+  -F 'messages=[{"role":"user","content":"Test"}]'
 
 # Check logs
 python src/main.py
+```
+
+### RAG Issues
+```bash
+# Verify RAG folder exists
+ls -la ./rag/
+
+# Check file permissions
+chmod -R 755 ./rag/
+
+# Validate document formats
+file ./rag/*
 ```
 
 ### Frontend Issues
@@ -224,18 +243,28 @@ curl http://localhost:8000/health
 cd chatbot-ui && npm run dev
 ```
 
-### Common Solutions
-- Ensure backend is running on port 8000
-- Verify `.env` configuration with valid credentials
-- Check file permissions for RAG folder
-- Validate document formats (`.txt`, `.md`, `.pdf`)
-
 ## 📚 Documentation
 
 - **Interactive API Docs**: http://localhost:8000/docs
 - **React UI**: http://localhost:5173
-- **Postman Collection**: Complete API testing suite in `postman/`
+- **Simplified Endpoints**: Only `/health` and `/chat` endpoints
 - **Examples**: Usage examples in `examples/`
+
+## 🎯 Architecture Overview
+
+### Simplified Design
+- **Endpoints**: Only 2 essential endpoints (`/health`, `/chat`)
+- **Route Files**: Minimal structure with health and chat modules
+- **Unified Logic**: Single endpoint handles all chat scenarios
+- **Clean Separation**: Clear distinction between health monitoring and chat functionality
+
+### Key Benefits
+- ✅ All RAG capabilities preserved
+- ✅ File upload support maintained
+- ✅ Health monitoring kept
+- ✅ Error handling preserved
+- ✅ Authentication flow unchanged
+- ✅ Simplified maintenance and testing
 
 ## 🤝 Contributing
 

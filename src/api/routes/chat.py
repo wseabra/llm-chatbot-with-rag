@@ -1,34 +1,42 @@
 """
-RAG-enhanced chat completion endpoint routes.
+Unified chat endpoint with RAG and file upload support.
 
-This module contains chat completion endpoints that use RAG for context retrieval
-and the flowApi client to interact with the external AI service.
+This module provides a single chat endpoint that handles both regular chat
+and chat with file uploads, using RAG for context enhancement.
 """
 
+import json
 import logging
-from fastapi import APIRouter, HTTPException, Depends
+import os
+import shutil
+import tempfile
+import uuid
+from pathlib import Path
+from typing import List, Optional, Dict, Any, Tuple
+
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel, Field, field_validator
-from typing import List, Optional, Dict, Any
 
 from ...flowApi.client import APIClient
 from ...flowApi.models import ChatMessage, ChatCompletionRequest
 from ...flowApi.exceptions import (
-    APIConnectionError, APITimeoutError, APIHTTPError, 
-    APIResponseError, APIAuthenticationError, APIConfigurationError
+    APIConnectionError, APITimeoutError, APIHTTPError,
+    APIResponseError, APIAuthenticationError, APIConfigurationError,
 )
-from ...rag.rag_manager import RAGManager
-from ...rag.exceptions import RAGError
 from ..clientManager import ClientManager
 from ..rag_dependency import get_rag_manager_optional
+from ...rag.rag_manager import RAGManager
+from ...rag.exceptions import RAGError
 
-
-# Configure logging
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/chat", tags=["chat"])
+router = APIRouter(tags=["chat"])
+
+SUPPORTED_EXTENSIONS = {".txt", ".md", ".pdf"}
+MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024  # 10MB
 
 
-# Pydantic models for request/response validation
+# Pydantic models for request validation
 class ChatMessageModel(BaseModel):
     """Pydantic model for chat message validation."""
     role: str = Field(..., description="Message role: 'system', 'user', or 'assistant'")
@@ -51,38 +59,6 @@ class ChatMessageModel(BaseModel):
         return v.strip()
 
 
-class SimpleChatRequest(BaseModel):
-    """Pydantic model for simple chat completion request."""
-    message: str = Field(..., description="User message content")
-    max_tokens: int = Field(default=4096, ge=1, le=8192, description="Maximum tokens to generate")
-    temperature: float = Field(default=0.7, ge=0.0, le=2.0, description="Sampling temperature")
-    
-    @field_validator('message')
-    @classmethod
-    def validate_message(cls, v):
-        """Validate message is not empty."""
-        if not v or not v.strip():
-            raise ValueError("user_message cannot be empty")
-        return v.strip()
-
-
-class AdvancedChatRequest(BaseModel):
-    """Pydantic model for advanced chat completion request."""
-    messages: List[ChatMessageModel] = Field(..., description="List of chat messages")
-    max_tokens: int = Field(default=4096, ge=1, le=8192, description="Maximum tokens to generate")
-    temperature: float = Field(default=0.7, ge=0.0, le=2.0, description="Sampling temperature")
-    stream: bool = Field(default=False, description="Whether to stream the response")
-    allowed_models: List[str] = Field(default=["gpt-4o-mini"], description="List of allowed models")
-    
-    @field_validator('messages')
-    @classmethod
-    def validate_messages(cls, v):
-        """Validate messages list is not empty."""
-        if not v:
-            raise ValueError("messages cannot be empty")
-        return v
-
-
 async def get_api_client() -> APIClient:
     """
     Dependency to get the shared APIClient instance.
@@ -93,16 +69,90 @@ async def get_api_client() -> APIClient:
     return await ClientManager.get_client()
 
 
-async def enhance_message_with_rag(
+def _validate_file(file: UploadFile) -> None:
+    """Validate uploaded file type and constraints."""
+    suffix = Path(file.filename or "").suffix.lower()
+    if suffix not in SUPPORTED_EXTENSIONS:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "status": "error",
+                "message": f"Unsupported file type: {suffix}. Allowed: {', '.join(sorted(SUPPORTED_EXTENSIONS))}",
+            },
+        )
+
+
+def _save_uploads_to_temp(files: List[UploadFile]) -> Tuple[Path, List[Tuple[str, str, str]]]:
+    """
+    Save uploaded files to a temporary folder and enforce size limit.
+
+    Returns a tuple of (temp_dir, uploaded_files_info)
+    where uploaded_files_info is a list of (file_path, document_id, original_filename).
+    """
+    temp_dir = Path(tempfile.mkdtemp(prefix="uploads_"))
+    saved: List[Tuple[str, str, str]] = []
+
+    for f in files:
+        _validate_file(f)
+        original = f.filename or f"upload_{uuid.uuid4().hex}"
+        safe_name = os.path.basename(original)
+        dest_path = temp_dir / safe_name
+
+        size = 0
+        with dest_path.open("wb") as out:
+            while True:
+                chunk = f.file.read(1024 * 1024)
+                if not chunk:
+                    break
+                size += len(chunk)
+                if size > MAX_FILE_SIZE_BYTES:
+                    try:
+                        f.file.close()
+                    except Exception:
+                        pass
+                    # cleanup partial file
+                    try:
+                        out.flush()
+                        out.close()
+                    except Exception:
+                        pass
+                    if dest_path.exists():
+                        dest_path.unlink(missing_ok=True)
+                    raise HTTPException(
+                        status_code=400,
+                        detail={
+                            "status": "error",
+                            "message": f"File '{safe_name}' exceeds 10MB limit",
+                        },
+                    )
+                out.write(chunk)
+        document_id = uuid.uuid4().hex
+        saved.append((str(dest_path), document_id, safe_name))
+
+    return temp_dir, saved
+
+
+def _cleanup_temp_dir(temp_dir: Optional[Path]) -> None:
+    """Clean up temporary directory."""
+    if temp_dir and temp_dir.exists():
+        try:
+            shutil.rmtree(temp_dir)
+        except Exception:
+            logger.warning("Failed to remove temp dir: %s", temp_dir)
+
+
+async def _enhance_message_with_rag(
     user_message: str, 
-    rag_manager: Optional[RAGManager]
-) -> tuple[str, Dict[str, Any]]:
+    rag_manager: Optional[RAGManager],
+    uploaded_infos: Optional[List[Tuple[str, str, str]]] = None
+) -> Tuple[str, Dict[str, Any]]:
     """
     Enhance a user message with RAG context if available.
     
     Args:
         user_message: Original user message
         rag_manager: RAG manager instance (optional)
+        uploaded_infos: List of uploaded file info (optional)
         
     Returns:
         Tuple of (enhanced_message, rag_metadata)
@@ -119,7 +169,12 @@ async def enhance_message_with_rag(
     
     try:
         # Enhance query with RAG context
-        enhanced_message, context_chunks = await rag_manager.enhance_query_with_context(user_message)
+        if uploaded_infos:
+            enhanced_message, context_chunks = await rag_manager.process_uploaded_documents_with_context(
+                user_message, uploaded_infos
+            )
+        else:
+            enhanced_message, context_chunks = await rag_manager.enhance_query_with_context(user_message)
         
         # Update metadata
         rag_metadata.update({
@@ -143,6 +198,9 @@ async def enhance_message_with_rag(
                 "similarity_scores": similarity_scores
             })
             
+            if uploaded_infos:
+                rag_metadata["uploaded_documents"] = [info[2] for info in uploaded_infos]
+            
             logger.debug(f"Enhanced message with {len(context_chunks)} context chunks")
         else:
             logger.debug("No relevant context found for query")
@@ -159,260 +217,156 @@ async def enhance_message_with_rag(
         return user_message, rag_metadata
 
 
-async def enhance_conversation_with_rag(
-    messages: List[ChatMessageModel],
-    rag_manager: Optional[RAGManager]
-) -> tuple[List[ChatMessage], Dict[str, Any]]:
-    """
-    Enhance a conversation with RAG context by processing the last user message.
-    
-    Args:
-        messages: List of conversation messages
-        rag_manager: RAG manager instance (optional)
-        
-    Returns:
-        Tuple of (enhanced_messages, rag_metadata)
-    """
-    rag_metadata = {
-        "rag_enabled": False,
-        "sources_used": 0,
-        "context_provided": False
-    }
-    
-    # Convert to ChatMessage objects
-    chat_messages = []
-    for msg in messages:
-        chat_messages.append(ChatMessage(role=msg.role, content=msg.content))
-    
-    # Find the last user message to enhance
-    last_user_message_idx = None
-    for i in range(len(chat_messages) - 1, -1, -1):
-        if chat_messages[i].role == 'user':
-            last_user_message_idx = i
-            break
-    
-    if last_user_message_idx is None:
-        logger.debug("No user message found to enhance")
-        return chat_messages, rag_metadata
-    
-    # Enhance the last user message
-    original_content = chat_messages[last_user_message_idx].content
-    enhanced_content, rag_metadata = await enhance_message_with_rag(original_content, rag_manager)
-    
-    # Update the message with enhanced content
-    chat_messages[last_user_message_idx] = ChatMessage(
-        role='user',
-        content=enhanced_content
-    )
-    
-    return chat_messages, rag_metadata
-
-
-@router.post("/completion")
+@router.post("/chat")
 async def chat_completion(
-    request: SimpleChatRequest,
+    messages: str = Form(..., description="JSON array of messages [{role, content}...]"),
     client: APIClient = Depends(get_api_client),
-    rag_manager: Optional[RAGManager] = Depends(get_rag_manager_optional)
+    rag_manager: Optional[RAGManager] = Depends(get_rag_manager_optional),
+    files: List[UploadFile] = File(default_factory=list),
+    max_tokens: int = Form(4096),
+    temperature: float = Form(0.7),
+    stream: bool = Form(False),
+    allowed_models: Optional[str] = Form(None, description="Comma-separated allowed models"),
 ):
     """
-    RAG-enhanced simple chat completion endpoint for single-turn conversations.
+    Unified chat endpoint that supports both regular chat and chat with file uploads.
     
-    This endpoint automatically enhances user queries with relevant context
-    from indexed documents using RAG (Retrieval-Augmented Generation).
+    Automatically enhances user queries with relevant context from indexed documents
+    and/or newly uploaded files using RAG (Retrieval-Augmented Generation).
     
     Args:
-        request: Simple chat completion request
+        messages: JSON string of chat messages
         client: APIClient dependency
         rag_manager: RAG manager dependency (optional)
+        files: Optional list of uploaded files
+        max_tokens: Maximum tokens to generate
+        temperature: Sampling temperature
+        stream: Whether to stream the response
+        allowed_models: Comma-separated list of allowed models
         
     Returns:
-        dict: Chat completion response with generated content and RAG metadata
+        dict: Chat completion response with RAG metadata
         
     Raises:
         HTTPException: If chat completion fails
     """
-    try:
-        # Enhance message with RAG context
-        enhanced_message, rag_metadata = await enhance_message_with_rag(
-            request.message, rag_manager
-        )
-        
-        # Use the simple chat_completion method with enhanced message
-        response = client.chat_completion(
-            user_message=enhanced_message,
-            max_tokens=request.max_tokens,
-            temperature=request.temperature
-        )
-        
-        # Prepare response with RAG metadata
-        response_data = {
-            "id": response.id,
-            "model": response.model,
-            "content": response.get_first_choice_content(),
-            "finish_reason": response.choices[0].finish_reason if response.choices else None,
-            "usage": response.usage.to_dict(),
-            "created": response.created,
-            "rag_metadata": rag_metadata
-        }
-        
-        return response_data
-        
-    except ValueError as e:
-        raise HTTPException(
-            status_code=400,
-            detail={
-                "status": "error",
-                "message": "Invalid request parameters",
-                "error": str(e)
-            }
-        )
-    except APIConfigurationError as e:
-        raise HTTPException(
-            status_code=500,
-            detail={
-                "status": "error",
-                "message": "Configuration error",
-                "error": str(e)
-            }
-        )
-    except APIAuthenticationError as e:
-        raise HTTPException(
-            status_code=401,
-            detail={
-                "status": "error",
-                "message": "Authentication failed",
-                "error": str(e)
-            }
-        )
-    except (APIConnectionError, APITimeoutError) as e:
-        raise HTTPException(
-            status_code=503,
-            detail={
-                "status": "error",
-                "message": "External API is unreachable",
-                "error": str(e)
-            }
-        )
-    except (APIHTTPError, APIResponseError) as e:
-        raise HTTPException(
-            status_code=502,
-            detail={
-                "status": "error",
-                "message": "External API returned an error",
-                "error": str(e)
-            }
-        )
-    except Exception as e:
-        logger.error(f"Unexpected error in chat completion: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail={
-                "status": "error",
-                "message": "Unexpected error during chat completion",
-                "error": str(e)
-            }
-        )
+    temp_dir: Optional[Path] = None
 
-
-@router.post("/advanced")
-async def advanced_chat_completion(
-    request: AdvancedChatRequest,
-    client: APIClient = Depends(get_api_client),
-    rag_manager: Optional[RAGManager] = Depends(get_rag_manager_optional)
-):
-    """
-    RAG-enhanced advanced chat completion endpoint for multi-turn conversations.
-    
-    This endpoint automatically enhances the last user message in the conversation
-    with relevant context from indexed documents using RAG.
-    
-    Args:
-        request: Advanced chat completion request
-        client: APIClient dependency
-        rag_manager: RAG manager dependency (optional)
-        
-    Returns:
-        dict: Complete chat completion response with RAG metadata
-        
-    Raises:
-        HTTPException: If chat completion fails
-    """
     try:
-        # Enhance conversation with RAG context
-        enhanced_messages, rag_metadata = await enhance_conversation_with_rag(
-            request.messages, rag_manager
+        # Parse and validate messages
+        try:
+            raw = json.loads(messages)
+            if not isinstance(raw, list) or not raw:
+                raise ValueError("messages must be a non-empty JSON array")
+            parsed_models = [ChatMessageModel(**m) for m in raw]
+        except Exception as e:
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "status": "error",
+                    "message": "Invalid messages payload",
+                    "error": str(e),
+                },
+            )
+
+        # Convert to flowApi ChatMessage objects
+        chat_messages: List[ChatMessage] = [
+            ChatMessage(role=m.role, content=m.content) for m in parsed_models
+        ]
+
+        # Find the last user message to enhance
+        last_user_idx = None
+        for i in range(len(chat_messages) - 1, -1, -1):
+            if chat_messages[i].role == "user":
+                last_user_idx = i
+                break
+
+        if last_user_idx is None:
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "status": "error",
+                    "message": "At least one user message is required",
+                },
+            )
+
+        # Handle uploads (if any)
+        uploaded_infos: List[Tuple[str, str, str]] = []
+        if files:
+            if rag_manager is None or not rag_manager.is_ready:
+                raise HTTPException(
+                    status_code=503,
+                    detail={
+                        "status": "error",
+                        "message": "RAG system not available to process uploads",
+                    },
+                )
+            temp_dir, uploaded_infos = _save_uploads_to_temp(files)
+
+        # Enhance last user message with RAG context
+        original_content = chat_messages[last_user_idx].content
+        enhanced_content, rag_metadata = await _enhance_message_with_rag(
+            original_content, rag_manager, uploaded_infos
         )
         
-        # Create ChatCompletionRequest with enhanced messages
+        # Update the message with enhanced content
+        chat_messages[last_user_idx] = ChatMessage(role="user", content=enhanced_content)
+
+        # Build request
+        models = [m.strip() for m in (allowed_models or "gpt-4o-mini").split(",") if m.strip()]
         chat_request = ChatCompletionRequest(
-            messages=enhanced_messages,
-            max_tokens=request.max_tokens,
-            temperature=request.temperature,
-            stream=request.stream,
-            allowed_models=request.allowed_models
+            messages=chat_messages,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            stream=stream,
+            allowed_models=models,
         )
-        
-        # Send the request
+
+        # Send to CI&T Flow API
         response = client.send_chat_request(chat_request)
-        
-        # Add RAG metadata to response
         response_dict = response.to_dict()
         response_dict["rag_metadata"] = rag_metadata
         
         return response_dict
-        
+
     except ValueError as e:
         raise HTTPException(
             status_code=400,
-            detail={
-                "status": "error",
-                "message": "Invalid request parameters",
-                "error": str(e)
-            }
+            detail={"status": "error", "message": "Invalid request parameters", "error": str(e)},
         )
     except APIConfigurationError as e:
         raise HTTPException(
-            status_code=500,
-            detail={
-                "status": "error",
-                "message": "Configuration error",
-                "error": str(e)
-            }
+            status_code=500, 
+            detail={"status": "error", "message": "Configuration error", "error": str(e)}
         )
     except APIAuthenticationError as e:
         raise HTTPException(
-            status_code=401,
-            detail={
-                "status": "error",
-                "message": "Authentication failed",
-                "error": str(e)
-            }
+            status_code=401, 
+            detail={"status": "error", "message": "Authentication failed", "error": str(e)}
         )
     except (APIConnectionError, APITimeoutError) as e:
         raise HTTPException(
-            status_code=503,
-            detail={
-                "status": "error",
-                "message": "External API is unreachable",
-                "error": str(e)
-            }
+            status_code=503, 
+            detail={"status": "error", "message": "External API is unreachable", "error": str(e)}
         )
     except (APIHTTPError, APIResponseError) as e:
         raise HTTPException(
-            status_code=502,
-            detail={
-                "status": "error",
-                "message": "External API returned an error",
-                "error": str(e)
-            }
+            status_code=502, 
+            detail={"status": "error", "message": "External API returned an error", "error": str(e)}
         )
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"Unexpected error in advanced chat completion: {e}")
+        logger.error("Unexpected error in chat completion: %s", e)
         raise HTTPException(
-            status_code=500,
-            detail={
-                "status": "error",
-                "message": "Unexpected error during chat completion",
-                "error": str(e)
-            }
+            status_code=500, 
+            detail={"status": "error", "message": "Unexpected error during chat completion", "error": str(e)}
         )
+    finally:
+        _cleanup_temp_dir(temp_dir)
+        # Close file streams
+        for f in files or []:
+            try:
+                f.file.close()
+            except Exception:
+                pass

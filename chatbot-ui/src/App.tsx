@@ -30,37 +30,24 @@ function App() {
     const sentFiles = [...files]
 
     try {
-      let response: Response
-
-      if (sentFiles.length > 0) {
-        const form = new FormData()
-        const minimalMessages = [...messages, userMessage].map(m => ({ role: m.role, content: m.content }))
-        form.append('messages', JSON.stringify(minimalMessages))
-        form.append('max_tokens', String(4096))
-        form.append('temperature', String(0.7))
-        form.append('stream', String(false))
-        form.append('allowed_models', 'gpt-4o-mini')
-        for (const file of sentFiles) {
-          form.append('files', file, file.name)
-        }
-
-        response = await fetch('http://localhost:8000/chat/uploaded', {
-          method: 'POST',
-          body: form
-        })
-      } else {
-        response = await fetch('http://localhost:8000/chat/advanced', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            messages: [...messages, userMessage],
-            max_tokens: 4096,
-            temperature: 0.7,
-            stream: false,
-            allowed_models: ['gpt-4o-mini']
-          })
-        })
+      // Use unified chat endpoint for all messages
+      const form = new FormData()
+      const minimalMessages = [...messages, userMessage].map(m => ({ role: m.role, content: m.content }))
+      form.append('messages', JSON.stringify(minimalMessages))
+      form.append('max_tokens', String(4096))
+      form.append('temperature', String(0.7))
+      form.append('stream', String(false))
+      form.append('allowed_models', 'gpt-4o-mini')
+      
+      // Add files if any (unified endpoint handles both cases)
+      for (const file of sentFiles) {
+        form.append('files', file, file.name)
       }
+
+      const response = await fetch('http://localhost:8000/chat', {
+        method: 'POST',
+        body: form
+      })
 
       if (response.ok) {
         const data = await response.json()

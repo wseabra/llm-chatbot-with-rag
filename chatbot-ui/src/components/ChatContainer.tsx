@@ -46,9 +46,8 @@ const ChatContainer: React.FC = () => {
       
       const messagesToSend = [...chatState.messages, userMessage]
       
-      const response = files && files.length > 0
-        ? await chatApi.sendMessageWithUploads(messagesToSend, files)
-        : await chatApi.sendMessage(messagesToSend)
+      // Use unified endpoint for all messages (with or without files)
+      const response = await chatApi.sendMessage(messagesToSend, files || [])
       
       if (response.choices && response.choices.length > 0) {
         const assistantMessage: ChatMessage = {

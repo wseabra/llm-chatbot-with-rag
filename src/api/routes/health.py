@@ -1,8 +1,8 @@
 """
 Health check endpoint routes.
 
-This module contains health check and monitoring related endpoints
-that use the flowApi client to check external service health.
+This module contains the essential health check endpoint
+that uses the flowApi client to check external service health.
 """
 
 from fastapi import APIRouter, HTTPException, Depends
@@ -86,17 +86,3 @@ async def health_check(client: APIClient = Depends(get_api_client)):
                 "error": str(e)
             }
         )
-
-
-@router.get("/health/simple")
-async def simple_health_check():
-    """
-    Simple health check endpoint that only checks local service status.
-    
-    Returns:
-        dict: Basic health status information
-    """
-    return {
-        "status": "healthy",
-        "message": "Local service is running"
-    }
